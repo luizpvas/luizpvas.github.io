@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <title>Fillfactor</title>
+    <link rel="stylesheet" href="index.css" />
+  </head>
+  <body class="bg-slate-100">
+    <main class="max-w-screen-md mx-4 lg:mx-auto pt-4">
+      <a href="index.html" class="inline-flex items-center bg-slate-200 hover:bg-slate-300 px-3 py-1 rounded-full">
+        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-5 h-5">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M10.5 19.5L3 12m0 0l7.5-7.5M3 12h18" />
+        </svg>
+
+        <span class="ml-1">All posts</span>
+      </a>
+
+      <div class="border-b-2 mb-4">
+        <h1 class="my-6 text-5xl tracking-tight">Fillfactor</h1>
+        <div class="text-slate-500 my-2">Published on 2023-03-05</div>
+      </div>
+
+      <div class="prose lg:prose-xl mb-12">
+        <p>PostgreSQL uses a <a href="https://www.postgresql.org/docs/current/storage-page-layout.html">page-based storage system</a> to store data. A page is a fixed-size block of data that is read from and written to disk as a unit.</p>
+
+<p>Pages are filled to 100% of its capacity by default, but we can ask PostgreSQL to leave some empty space by setting <code>fillfactor</code> to a value smaller than 100.</p>
+
+<pre><code class="sql">ALTER TABLE my_table SET (fillfactor = 90);
+</code></pre>
+
+<p><a href="https://www.postgresql.org/docs/current/sql-createtable.html">As the documentation explains</a>: when a smaller fillfactor is specified, <code>INSERT</code> operations pack table pages only to the indicated percentage; the remaining space on each page is reserved for updating rows on that page.</p>
+
+<h3>When is it useful?</h3>
+
+<p>I discovered this option reading Que&#39;s source code. <a href="https://github.com/que-rb/que/blob/master/lib/que/migrations/4/up.sql#L1">There is a migration that sets <code>fillfactor</code> to 90 for the jobs table</a>.</p>
+
+<p>Job are inserted as pending and then always updated with the result from <code>perform</code>. Leaving 10% of free space in the pages makes updates very likely to touch only one page, which makes the operation more efficient.</p>
+
+<p>Changing the <code>fillfactor</code> is not something that would make a difference for most applications, but it&#39;s nice to know.</p>
+
+      </div>
+    </main>
+  </body>
+</html>
