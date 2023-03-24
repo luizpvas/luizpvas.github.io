@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <title><%= post.metadata.title %></title>
+    <link rel="stylesheet" href="index.css" />
+  </head>
+  <body class="bg-slate-100">
+    <main class="max-w-screen-md mx-4 lg:mx-auto pt-4">
+      <a href="index.html" class="inline-flex items-center bg-slate-200 hover:bg-slate-300 px-3 py-1 rounded-full">
+        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-5 h-5">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M10.5 19.5L3 12m0 0l7.5-7.5M3 12h18" />
+        </svg>
+
+        <span class="ml-1">All posts</span>
+      </a>
+
+      <div class="border-b-2 mb-4">
+        <h1 class="my-6 text-5xl tracking-tight"><%= post.metadata.title %></h1>
+        <div class="text-slate-500 my-2">Published on <%= post.metadata.publication_date %></div>
+      </div>
+
+      <div class="prose lg:prose-xl mb-12">
+        <%= post.html_body %>
+      </div>
+    </main>
+  </body>
+</html>
