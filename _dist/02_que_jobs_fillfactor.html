@@ -34,9 +34,9 @@
 
 <p>I discovered this option reading Que&#39;s source code. <a href="https://github.com/que-rb/que/blob/master/lib/que/migrations/4/up.sql#L1">There is a migration that sets <code>fillfactor</code> to 90 for the jobs table</a>.</p>
 
-<p>Job are inserted as pending and then always updated with the result from <code>perform</code>. Leaving 10% of free space in the pages makes updates very likely to touch only one page, which makes the operation more efficient.</p>
+<p>Job are inserted as pending and then always updated with the result from <code>perform</code>. Leaving 10% of free space in the pages makes updates very likely to touch only one page, which sounds great.</p>
 
-<p>Changing the <code>fillfactor</code> is not something that would make a difference for most applications, but it&#39;s nice to know.</p>
+<p>However... in my experience changing the <code>fillfactor</code> is not something that would make a difference for most applications. But it&#39;s nice to know.</p>
 
       </div>
     </main>

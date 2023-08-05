@@ -16,6 +16,6 @@ ALTER TABLE my_table SET (fillfactor = 90);
 
 I discovered this option reading Que's source code. [There is a migration that sets `fillfactor` to 90 for the jobs table](https://github.com/que-rb/que/blob/master/lib/que/migrations/4/up.sql#L1).
 
-Job are inserted as pending and then always updated with the result from `perform`. Leaving 10% of free space in the pages makes updates very likely to touch only one page, which makes the operation more efficient.
+Job are inserted as pending and then always updated with the result from `perform`. Leaving 10% of free space in the pages makes updates very likely to touch only one page, which sounds great.
 
-Changing the `fillfactor` is not something that would make a difference for most applications, but it's nice to know.
+However... in my experience changing the `fillfactor` is not something that would make a difference for most applications. But it's nice to know.
