@@ -1,4 +1,4 @@
--- title: Extensions in Holistic LSP
+-- title: Holistic Language Server - Extensions
 -- publication_date: 2023-08-03
 -- summary: The code needs lots of conditionals spread across parsing and type solving to deal with every quirk of the Ruby language and libraries I wish to support.
 
@@ -23,7 +23,7 @@ Worse than doing nothing. It still has the same problems but more with indirecti
 
 Move all lib specific code closed together. Core broadcasts events (`reference_added`, `scope_defined`, `type_solved`, etc.) that each extension can listen and do something about. The dependency happens in one direction: extensions knows about core, core does not know about extensions.
 
-A consequence of this design is exposing core's types (`Reference::Record`, `Scope::Record`, `TypeInference::Clue::*`, `TypeInference::Conclusion`, etc.). All of those things becomes a contract that were private before. I'm OK with that.
+A consequence of this design is exposing core's types (`Reference::Record`, `Scope::Record`, `TypeInference::Clue::*`, `TypeInference::Conclusion`, etc.). All of those things that were private before becomes then a public contract. I'm OK with that.
 
 By the way, this approach is known as microkernel architecture or plugin architecture. There are lots of good stuff about it on Google.
 

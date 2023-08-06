@@ -44,27 +44,25 @@ module Post
     def published?       = !!publication_date
   end
 
-  module Parser
-    Call = ->(markdown_renderer, file_path) do
-      id = file_path.gsub("posts/", "").gsub(".md", "")
+  ParsePost = ->(markdown_renderer, file_path) do
+    id = file_path.gsub("posts/", "").gsub(".md", "")
 
-      lines = ::File.read(file_path).split("\n")
-      metadata_lines = lines.take_while { |line| line.start_with?("--") }
-      markdown_content_lines = lines.drop(metadata_lines.size + 1)
+    lines = ::File.read(file_path).split("\n")
+    metadata_lines = lines.take_while { |line| line.start_with?("--") }
+    markdown_content_lines = lines.drop(metadata_lines.size + 1)
 
-      metadata = Metadata.new(Metadata::Parse[metadata_lines])
-      markdown_body = markdown_content_lines.join("\n")
-      html_body = markdown_renderer.render(markdown_body)
+    metadata = Metadata.new(Metadata::Parse[metadata_lines])
+    markdown_body = markdown_content_lines.join("\n")
+    html_body = markdown_renderer.render(markdown_body)
 
-      Data.new(id:, metadata:, html_body:)
-    end
+    Data.new(id:, metadata:, html_body:)
   end
 
   MARKDOWN_RENDERER = ::Redcarpet::Markdown.new(Redcarpet::Render::HTML, fenced_code_blocks: true)
 
-  RECORDS = ::Dir.glob("posts/*.md").map(&Parser::Call.curry[MARKDOWN_RENDERER])
+  RECORDS = ::Dir.glob("posts/*.md").map(&ParsePost.curry[MARKDOWN_RENDERER])
 
-  PUBLISHED_RECORDS = RECORDS.reverse.filter { _1.metadata.published? }
+  PUBLISHED = RECORDS.reverse.filter { _1.metadata.published? }
 end
 
 # ======== main ========
@@ -72,11 +70,11 @@ end
 puts "#{Time.now}: Building..."
 
 Template.new("pages/index.html.erb").tap do |index_template|
-  index_template.render({ posts: Post::PUBLISHED_RECORDS }, save_to: "_dist/index.html")
+  index_template.render({ posts: Post::PUBLISHED }, save_to: "_dist/index.html")
 end
 
 Template.new("pages/post.html.erb").tap do |post_template|
-  Post::PUBLISHED_RECORDS.each do |post|
+  Post::PUBLISHED.each do |post|
     post_template.render({ post: }, save_to: "_dist/#{post.id}.html")
   end
 end

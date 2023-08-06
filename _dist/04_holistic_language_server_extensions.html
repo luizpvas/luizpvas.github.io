@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Holistic Language Server - Extensions</title>
+    <link rel="stylesheet" href="index.css" />
+  </head>
+  <body class="bg-slate-100">
+    <main class="max-w-screen-md mx-4 lg:mx-auto pt-4">
+      <a href="index.html" class="inline-flex items-center bg-slate-200 hover:bg-slate-300 px-3 py-1 rounded-full">
+        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-5 h-5">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M10.5 19.5L3 12m0 0l7.5-7.5M3 12h18" />
+        </svg>
+
+        <span class="ml-1">All posts</span>
+      </a>
+
+      <div class="border-b-2 mb-4">
+        <h1 class="my-6 text-5xl tracking-tight">Holistic Language Server - Extensions</h1>
+        <div class="text-slate-500 my-2">Published on 2023-08-03</div>
+      </div>
+
+      <div class="prose lg:prose-xl mb-12">
+        <h3>What problem am I trying to solve?</h3>
+
+<p>The code needs lots of conditionals spread across parsing and type solving to deal with every quirk of the Ruby language and libraries
+I wish to support.</p>
+
+<p>The parser should not know about RSpec-specific DSL. The parser should not know about Rails-specific DSL.</p>
+
+<h3>What can I do about it?</h3>
+
+<h4>1. Nothing</h4>
+
+<p>Fine for a while, bad after that while.</p>
+
+<h4>2. Move conditionals to a module with a descriptive name (increase greppability)</h4>
+
+<p>Worse than doing nothing. It still has the same problems but more with indirection.</p>
+
+<h4>3. Decouple core from lib specific behaviour</h4>
+
+<p>Move all lib specific code closed together. Core broadcasts events (<code>reference_added</code>, <code>scope_defined</code>, <code>type_solved</code>, etc.) that each extension can listen and do something about. The dependency happens in one direction: extensions knows about core, core does not know about extensions.</p>
+
+<p>A consequence of this design is exposing core&#39;s types (<code>Reference::Record</code>, <code>Scope::Record</code>, <code>TypeInference::Clue::*</code>, <code>TypeInference::Conclusion</code>, etc.). All of those things that were private before becomes then a public contract. I&#39;m OK with that.</p>
+
+<p>By the way, this approach is known as microkernel architecture or plugin architecture. There are lots of good stuff about it on Google.</p>
+
+<h3>How can I know I&#39;ve chosen the best solution?</h3>
+
+<ul>
+<li>If I need to change the support for a library because their API changed, the changes are closed together.</li>
+<li>If I need to add support for a new library, code gets added, no changed.</li>
+<li>There should be no regression in existing libraries when adding a new one.</li>
+</ul>
+
+      </div>
+    </main>
+  </body>
+</html>
