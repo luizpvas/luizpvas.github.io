@@ -15,16 +15,16 @@ Implicit contracts are difficult to understand and change.
 #### 1. Nothing
 
 * Both emitters and listeners are defined in the same repository, so just dispatch events and assume the output is correct. Test would catch errors.
-* No single place to look at to know which events are available and what are they made of.
+* No single place to look at to know which events are available and what they are made of.
 
 #### 2. Make contracts explicit (!!)
 
-* Define all events in a single place. Enumerate arguments and the expected output. When dispatching an event, verify the arguments and output match expected format. Throw runtime exception if not.
+* Define all events in a single place. Enumerate arguments and the expected output. When dispatching an event, verify the arguments and output match expected format. Throw exception if not.
 * Event templates serves the purpose of documentation, and they cannot get out of sync otherwise there would be runtime errors.
 
 ### How can I know I've chosen the best solution?
 
-It should be a simple task to add new listeners and get the implementation right with confidence I'm not breaking other stuff.
+It should be a simple task to add new listeners and get the implementation right *with confidence* I'm not breaking other stuff.
 
 _________________________
 

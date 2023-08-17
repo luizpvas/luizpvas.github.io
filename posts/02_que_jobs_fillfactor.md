@@ -18,4 +18,4 @@ I discovered this option reading Que's source code. [There is a migration that s
 
 Job are inserted as pending and then always updated with the result from `perform`. Leaving 10% of free space in the pages makes updates very likely to touch only one page, which sounds great.
 
-However... in my experience changing the `fillfactor` is not something that would make a difference for most applications. But it's nice to know.
+However... changing the `fillfactor` is not something that would make a difference for most applications. It's nice to know, though.
