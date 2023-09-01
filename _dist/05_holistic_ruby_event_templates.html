@@ -2,7 +2,7 @@
 <html lang="en">
   <head>
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>Holistic Language Server - Event templates</title>
+    <title>Holistic Ruby - Event templates</title>
     <link rel="stylesheet" href="index.css" />
   </head>
   <body class="bg-slate-100">
@@ -16,7 +16,7 @@
       </a>
 
       <div class="border-b-2 mb-4">
-        <h1 class="my-6 text-5xl tracking-tight">Holistic Language Server - Event templates</h1>
+        <h1 class="my-6 text-5xl tracking-tight">Holistic Ruby - Event templates</h1>
         <div class="text-slate-500 my-2">Published on 2023-08-06</div>
       </div>
 
@@ -35,19 +35,19 @@ Failing to adhere to the contract would result in a runtime exception.</p>
 
 <ul>
 <li>Both emitters and listeners are defined in the same repository, so just dispatch events and assume the output is correct. Test would catch errors.</li>
-<li>No single place to look at to know which events are available and what are they made of.</li>
+<li>No single place to look at to know which events are available and what they are made of.</li>
 </ul>
 
 <h4>2. Make contracts explicit (!!)</h4>
 
 <ul>
-<li>Define all events in a single place. Enumerate arguments and the expected output. When dispatching an event, verify the arguments and output match expected format. Throw runtime exception if not.</li>
+<li>Define all events in a single place. Enumerate arguments and the expected output. When dispatching an event, verify the arguments and output match expected format. Throw exception if not.</li>
 <li>Event templates serves the purpose of documentation, and they cannot get out of sync otherwise there would be runtime errors.</li>
 </ul>
 
 <h3>How can I know I&#39;ve chosen the best solution?</h3>
 
-<p>It should be a simple task to add new listeners and get the implementation right with confidence I&#39;m not breaking other stuff.</p>
+<p>It should be a simple task to add new listeners and get the implementation right <em>with confidence</em> I&#39;m not breaking other stuff.</p>
 
 <hr>
 

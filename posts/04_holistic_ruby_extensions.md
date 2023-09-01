@@ -1,4 +1,4 @@
--- title: Holistic Language Server - Extensions
+-- title: Holistic Ruby - Extensions
 -- publication_date: 2023-08-03
 -- summary: The code needs lots of conditionals spread across parsing and type solving to deal with every quirk of the Ruby language and libraries I wish to support.
 
@@ -25,7 +25,7 @@ Move all lib specific code closed together. Core broadcasts events (`reference_a
 
 A consequence of this design is exposing core's types (`Reference::Record`, `Scope::Record`, `TypeInference::Clue::*`, `TypeInference::Conclusion`, etc.). All of those things that were private before becomes part of the public contract. I'm OK with that.
 
-By the way, this approach is known as microkernel architecture or plugin architecture. There are lots of good stuff about it on Google.
+By the way, this approach is known as microkernel architecture or plugin architecture.
 
 ### How can I know I've chosen the best solution?
 

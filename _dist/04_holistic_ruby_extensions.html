@@ -2,7 +2,7 @@
 <html lang="en">
   <head>
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>Holistic Language Server - Extensions</title>
+    <title>Holistic Ruby - Extensions</title>
     <link rel="stylesheet" href="index.css" />
   </head>
   <body class="bg-slate-100">
@@ -16,7 +16,7 @@
       </a>
 
       <div class="border-b-2 mb-4">
-        <h1 class="my-6 text-5xl tracking-tight">Holistic Language Server - Extensions</h1>
+        <h1 class="my-6 text-5xl tracking-tight">Holistic Ruby - Extensions</h1>
         <div class="text-slate-500 my-2">Published on 2023-08-03</div>
       </div>
 
@@ -32,7 +32,7 @@ I wish to support.</p>
 
 <h4>1. Nothing</h4>
 
-<p>Fine for a while, bad after that while.</p>
+<p>Fine for a while, gets worse as the code grows.</p>
 
 <h4>2. Move conditionals to a module with a descriptive name (increase greppability)</h4>
 
@@ -40,17 +40,17 @@ I wish to support.</p>
 
 <h4>3. Decouple core from lib specific behaviour</h4>
 
-<p>Move all lib specific code closed together. Core broadcasts events (<code>reference_added</code>, <code>scope_defined</code>, <code>type_solved</code>, etc.) that each extension can listen and do something about. The dependency happens in one direction: extensions knows about core, core does not know about extensions.</p>
+<p>Move all lib specific code closed together. Core broadcasts events (<code>reference_added</code>, <code>scope_defined</code>, <code>type_solved</code>, etc.) that each extension can listen to and do something about. The dependency happens in one direction: extensions knows about core, core does not know about extensions.</p>
 
-<p>A consequence of this design is exposing core&#39;s types (<code>Reference::Record</code>, <code>Scope::Record</code>, <code>TypeInference::Clue::*</code>, <code>TypeInference::Conclusion</code>, etc.). All of those things that were private before becomes then a public contract. I&#39;m OK with that.</p>
+<p>A consequence of this design is exposing core&#39;s types (<code>Reference::Record</code>, <code>Scope::Record</code>, <code>TypeInference::Clue::*</code>, <code>TypeInference::Conclusion</code>, etc.). All of those things that were private before becomes part of the public contract. I&#39;m OK with that.</p>
 
-<p>By the way, this approach is known as microkernel architecture or plugin architecture. There are lots of good stuff about it on Google.</p>
+<p>By the way, this approach is known as microkernel architecture or plugin architecture.</p>
 
 <h3>How can I know I&#39;ve chosen the best solution?</h3>
 
 <ul>
-<li>If I need to change the support for a library because their API changed, the changes are closed together.</li>
-<li>If I need to add support for a new library, code gets added, no changed.</li>
+<li>If I need to change a library because their API changed, all changes are closed together.</li>
+<li>If I want to support a new library, code gets added, no changed.</li>
 <li>There should be no regression in existing libraries when adding a new one.</li>
 </ul>
 

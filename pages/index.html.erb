@@ -6,8 +6,14 @@
     <link rel="stylesheet" href="index.css" />
   </head>
   <body class="bg-slate-100">
-    <main class="max-w-screen-md mx-auto">
-      <h1 class="my-6 text-3xl text-center tracking-tight">All posts</h1>
+    <main class="max-w-screen-md mx-auto my-4 space-y-4">
+      <h1 class="text-3xl text-center tracking-tight">All posts</h1>
+
+      <div class="flex justify-center items-center">
+        <a href="https://github.com/luizpvas/" target="_blank" class="font-bold border rounded-full px-2 bg-white hover:border-blue-500">
+          Github
+        </a>
+      </div>
 
       <div class="grid gap-2 mx-2 lg:mx-0">
         <% posts.each do |post| %>

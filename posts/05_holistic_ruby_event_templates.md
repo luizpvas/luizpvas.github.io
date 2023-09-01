@@ -1,4 +1,4 @@
--- title: Holistic Language Server - Event templates
+-- title: Holistic Ruby - Event templates
 -- publication_date: 2023-08-06
 -- summary: Core communicates with extensions via event broadcasting, and each event has an implicit contract. Let's make them explicit.
 

@@ -1,49 +1,31 @@
--- title: The controller abstraction
--- publication_date: 2023-08-06
--- summary: Core communicates with extensions via event broadcasting, and each event has an implicit contract. Let's make them explicit.
+-- title: Controllers and views
+-- publication_date: 2023-08-31
+-- summary: Code that changes together should be close together
 
-Disclaimer: this post was written from the perspective of building web apps mainly with server rendered HTML with frameworks such as Rails, Laravel or Django.
+In server-side rendered web applications, views are functions `args -> string`. Controllers are functions `untrusted_args -> string`. Controllers authorize the request, validate inputs, run some queries, etc. and then respond with a `render` call.
 
-Controllers are not the best abstraction for building the UI of a web application. We have already discovered better tools to build
-that page that lists something and shows the details about each thing when you click on it, or that complex multistep form that aggregates
-what you type and then do something at the end.
+Controllers are responsible for gathering and providing the data needed **for a specific view**, with the specific names and fields the view requires. Even though the controller does not care about how things look visually and how they're arranged, it has to know about the shape of the data.
 
-#### Controllers and views are the same thing
+But the dependency goes both ways. Views know about controllers just as much as controllers know about views.
+You can't just change the endpoint of a form and expected the app to continue working.
+You can't just remove a field from a form and expected the app to continue working.
 
-Views are functions `args -> string`. Controllers are functions `untrusted_params -> string`. Controllers validate, authorize, run some queries, etc. and then call the view and send the output to the client.
+Forms are designed to submit data to one specific endpoint.
+Controllers are designed to render one specified view.
 
-Controllers are responsible to format and gather the data needed *for a specific view*, with the specific names and fields the view requires.
-This is the important bit. The view has a contract and the controller knows about it. The controller *has* to know about it, otherwise we would
-get runtime errors while rendering the view.
+Think about how often you have to change both of them in the same pull request.
 
-But the dependency goes both ways. The view knows about the controller just as much as the controller knows about the view.
-You can't just change the endpoint of a form to and expected the app to continue working.
-You can't just delete a field from a form and expected the app to continue working.
+* You add a new field that you read, validate and store.
+* You change a value to a list of values and validation has to change.
+* You add some hidden inputs to pass around a parameter needed by some endpoint down the line.
 
-Forms submit data in a specific format that one specific controller can handle.
+### Code that changes together should be close together
 
-Do you see where am I going?
+Controllers and views are indeed different abstractions, but they're tightly coupled.
 
-Here's another way to think about coupling between controllers and views. Think about how often you have two change both of them, in the same pull request, to accomodate for a new feature.
-You add a new field or a new parameter that you then read and validate on the controller.
-You change a field to be a list of fields and now you need to parse the list of values that arrive.
-You change the 
+Here is a rule of thumb for all software: code that changes together should be close together. If that sounds similar to the S principle in SOLID, it does because it is. Code that changes together should be in the same file. Files that change together should be in the same directory. You should be able to look at the directory structure of your app and understand what is is about, what it does, what things are related to what things.
 
-Now, of course there are exceptions. Visual changes only touches the view. Authorization changes only touches the controller. But the vast majority
-of changes, the ones that change the behaviour of the app, touches both *at the same time*.
-
-So, what can we do about it?
-
-#### Better, higher level abstractions
-
-Livewire and LiveView have proven there is a better way to build UIs. The rendered HTML 
-
-#### Code that change together should be close together
-
-Here is a rule of thumb for all software development: code that change together should be close together. Close together in the physical
-sense. Files that change together should be near each other. In the same directory if possible. You should be able to look at the directory structure of your app and understand what is is about, what it does, what things are related to what things.
-
-To constrat with this idea of proximity (what not to do), have you ever worked in a feature that resulted in a PR that looked like this?
+Here's an example of a pull request overview with the opposite idea of "code that changes together should be close together":
 
 ```bash
 my_app/
@@ -65,8 +47,27 @@ my_app/
         new.html.erb # (+29 lines)
 ```
 
-I certainly did. Organizing your app by patterns and abstractions works, but I believe there are better ways.
+All those abstractions look like they're about the same concept, don't they? Why do we insist in putting them so far apart from each other?
 
-To 
+### Controllers and views next to each other
 
-`prepend_view_path`
+Here's a Rails trick you can use to place controllers and views next to each other: [`prepend_view_path`](https://api.rubyonrails.org/v7.0/classes/ActionView/ViewPaths/ClassMethods.html#method-i-prepend_view_path).
+
+```ruby
+class ApplicationController < ActionController::Base
+  prepend_view_path Rails.root.join("app/controllers")
+end
+```
+
+You can now place your views in the same directory.
+
+```
+  app/
+    controllers/
+      payments/
+        invoices/
+          index.html.erb
+          new.html.erb
+          create.turbo-stream.erb
+        invoices_controller.rb
+```
