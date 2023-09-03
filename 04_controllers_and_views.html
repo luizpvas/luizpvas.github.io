@@ -63,7 +63,7 @@ Controllers render one specified view.</p>
 
 <h3>Controllers and views next to each other</h3>
 
-<p>Rails has the method <a href="https://api.rubyonrails.org/v7.0/classes/ActionView/ViewPaths/ClassMethods.html#method-i-prepend_view_path"><code>prepend_view_path</code></a> that adds additional lookup paths for templates. You can now place your views wherever it makes more sense for your app.</p>
+<p>Rails provides the method <a href="https://api.rubyonrails.org/v7.0/classes/ActionView/ViewPaths/ClassMethods.html#method-i-prepend_view_path"><code>prepend_view_path</code></a> that adds a lookup path for templates. You can use it to place your templates right next to the controller that renders them - or wherever makes more sense for your app.</p>
 
 <pre><code class="ruby">class ApplicationController &lt; ActionController::Base
   prepend_view_path Rails.root.join(&quot;app/controllers&quot;)

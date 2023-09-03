@@ -1,0 +1,79 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>IO bound parsing</title>
+    <link rel="stylesheet" href="index.css" />
+  </head>
+  <body class="bg-slate-100 dark:bg-slate-800 dark:text-white">
+    <main class="max-w-screen-md mx-4 lg:mx-auto pt-4">
+      <a href="index.html" class="inline-flex border dark:border-slate-900 items-center bg-slate-200 dark:bg-slate-700 hover:border-blue-500 px-3 py-1 rounded-full">
+        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-5 h-5">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M10.5 19.5L3 12m0 0l7.5-7.5M3 12h18" />
+        </svg>
+
+        <span class="ml-1">All posts</span>
+      </a>
+
+      <div class="border-b-2 dark:border-slate-900 mb-4">
+        <h1 class="my-6 text-5xl tracking-tight">IO bound parsing</h1>
+        <div class="text-slate-500 dark:text-slate-300 my-2">Published on 2023-09-02</div>
+      </div>
+
+      <div class="prose dark:prose-invert lg:prose-xl mb-12">
+        <p>In Ruby MRI only one VM instruction can run at a time. No parallelism at all. However, we can have concurrent execution when threads are waiting for IO.
+The Ruby VM executes instructions sequentially for a given thread until it reaches an IO call, which runs in background.
+While waiting for IO, the Ruby VM jumps to another thread and starts executing its instructions until it
+reaches some other IO call. Rinse and repeat.</p>
+
+<p>I&#39;ve been working on a <a href="https://github.com/luizpvas/holistic-ruby/">language server for Ruby</a> for the past couple of months. During initialization,
+the language server reads the app&#39;s source code, parses it and indexes the parsed data in a single thread.</p>
+
+<h4>Can I speed up <code>holistic-ruby</code> with threads?</h4>
+
+<p>Another way to phrase this question is: &quot;is the code I&#39;m trying to optimize IO bound?&quot;. Let&#39;s see.</p>
+
+<p>The following is a benchmark for initializing <code>holistic-ruby</code> on different popular libraries. It measures the time spent on 1) reading the app&#39;s source code, 2) converting the source code into AST and indexing the data, and 3) running the type inference algorithm.</p>
+
+<table><thead>
+<tr>
+<th style="text-align: center">app</th>
+<th style="text-align: center">amount of files</th>
+<th style="text-align: center">file reading</th>
+<th style="text-align: center">parsing and indexing</th>
+<th style="text-align: center">type inference</th>
+</tr>
+</thead><tbody>
+<tr>
+<td style="text-align: center">newrelic-ruby-agent</td>
+<td style="text-align: center">1009</td>
+<td style="text-align: center">0.008818727982s</td>
+<td style="text-align: center">2.44959996399s</td>
+<td style="text-align: center">0.185098429999s</td>
+</tr>
+<tr>
+<td style="text-align: center">sidekiq</td>
+<td style="text-align: center">120</td>
+<td style="text-align: center">0.00107567099985s</td>
+<td style="text-align: center">0.27185193400s</td>
+<td style="text-align: center">0.0096343349996s</td>
+</tr>
+<tr>
+<td style="text-align: center">devise</td>
+<td style="text-align: center">201</td>
+<td style="text-align: center">0.00229818698971s</td>
+<td style="text-align: center">0.29916613001s</td>
+<td style="text-align: center">0.011243356999s</td>
+</tr>
+</tbody></table>
+
+<p>The time spent on IO seems pretty short compared to the CPU bound operations.</p>
+
+<p><img src="/images/06_io_bound_benchmark.png" alt="benchmark chart result in percentage"></p>
+
+<p>Even if I managed to make the IO part instantenous, the overall performance of the initialization process would improve by +- 0,5%. So it is definetly not IO bound, and not worth the trouble of adding threads.</p>
+
+      </div>
+    </main>
+  </body>
+</html>
