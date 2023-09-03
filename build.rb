@@ -45,7 +45,7 @@ module Post
   end
 
   ParsePost = ->(markdown_renderer, file_path) do
-    id = file_path.gsub("posts/", "").gsub(".md", "")
+    id = ::File.basename(file_path).gsub(".md", "")
 
     lines = ::File.read(file_path).split("\n")
     metadata_lines = lines.take_while { |line| line.start_with?("--") }
@@ -61,8 +61,11 @@ module Post
   MARKDOWN_RENDERER = ::Redcarpet::Markdown.new(Redcarpet::Render::HTML, fenced_code_blocks: true)
 
   RECORDS = ::Dir.glob("posts/*.md").map(&ParsePost.curry[MARKDOWN_RENDERER])
+    .filter { |post| post.metadata.published? }
+    .sort_by { |post| post.metadata.publication_date }
+    .reverse
 
-  PUBLISHED = RECORDS.reverse.filter { _1.metadata.published? }
+  JOURNAL = ::Dir.glob("posts/journal/*.md").map(&ParsePost.curry[MARKDOWN_RENDERER])
 end
 
 # ======== main ========
@@ -70,12 +73,16 @@ end
 puts "#{Time.now}: Building..."
 
 Template.new("pages/index.html.erb").tap do |index_template|
-  index_template.render({ posts: Post::PUBLISHED }, save_to: "_dist/index.html")
+  index_template.render({ posts: Post::RECORDS, journal: Post::JOURNAL }, save_to: "_dist/index.html")
 end
 
 Template.new("pages/post.html.erb").tap do |post_template|
-  Post::PUBLISHED.each do |post|
+  Post::RECORDS.each do |post|
     post_template.render({ post: }, save_to: "_dist/#{post.id}.html")
+  end
+
+  Post::JOURNAL.each do |journal_post|
+    post_template.render({ post: journal_post }, save_to: "_dist/#{journal_post.id}.html")
   end
 end
 
