@@ -45,7 +45,7 @@ All those abstractions look like they're about the same feature, don't they? Why
 
 ### Controllers and views next to each other
 
-Rails has the method [`prepend_view_path`](https://api.rubyonrails.org/v7.0/classes/ActionView/ViewPaths/ClassMethods.html#method-i-prepend_view_path) that adds additional lookup paths for templates. You can now place your views wherever it makes more sense for your app.
+Rails provides the method [`prepend_view_path`](https://api.rubyonrails.org/v7.0/classes/ActionView/ViewPaths/ClassMethods.html#method-i-prepend_view_path) that adds a lookup path for templates. You can use it to place your templates right next to the controller that renders them - or wherever makes more sense for your app.
 
 ```ruby
 class ApplicationController < ActionController::Base

@@ -58,7 +58,7 @@ module Post
     Data.new(id:, metadata:, html_body:)
   end
 
-  MARKDOWN_RENDERER = ::Redcarpet::Markdown.new(Redcarpet::Render::HTML, fenced_code_blocks: true)
+  MARKDOWN_RENDERER = ::Redcarpet::Markdown.new(Redcarpet::Render::HTML, fenced_code_blocks: true, tables: true)
 
   RECORDS = ::Dir.glob("posts/*.md").map(&ParsePost.curry[MARKDOWN_RENDERER])
     .filter { |post| post.metadata.published? }
