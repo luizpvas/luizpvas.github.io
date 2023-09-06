@@ -1,6 +1,6 @@
 -- title: IO bound parsing
 -- publication_date: 2023-09-02
--- summary: Is the code I'm trying to optimize IO bound?
+-- summary: Threads to the rescue (or not)
 
 In Ruby MRI only one VM instruction can run at a time. No parallelism at all. However, we can have concurrent execution when threads are waiting for IO.
 The Ruby VM executes instructions sequentially for a given thread until it reaches an IO call, which runs in background.
@@ -26,4 +26,6 @@ The time spent on IO seems pretty short compared to the CPU bound operations.
 
 ![benchmark chart result in percentage](/images/06_io_bound_benchmark.png)
 
-Even if I managed to make the IO part instantenous, the overall performance of the initialization process would improve by +- 0,5%. So it is definetly not IO bound, and not worth the trouble of adding threads.
+Even if I managed to make the IO part instantaneous, the overall performance of the system would improve by +- 0,5%. Definetly not IO bound and not worth the trouble of adding threads.
+
+Ractors on the other hand...
