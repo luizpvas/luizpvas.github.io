@@ -8,11 +8,11 @@ While waiting for IO to finish in background, the Ruby VM jumps to another threa
 reaches some other IO call. Rinse and repeat.
 
 I've been working on a [language server for Ruby](https://github.com/luizpvas/holistic-ruby/) for the past couple of months. During initialization,
-the language server reads the app's source code, parses it and indexes the parsed data in a single thread.
+the language server reads the app's source code, parses it and indexes the parsed data. All in a single thread.
 
 #### Can I speed up `holistic-ruby` with threads?
 
-Another way to phrase this question is: "is the code I'm trying to optimize IO bound?". Let's see.
+Here's another way to phrase this question: "is the code I'm trying to optimize IO bound?". Let's see.
 
 The following is a benchmark for initializing `holistic-ruby` on different popular libraries. It measures the time spent on 1) reading the app's source code, 2) converting the source code into AST and indexing the data, and 3) running the type inference algorithm.
 
