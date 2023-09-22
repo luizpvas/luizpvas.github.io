@@ -1,10 +1,10 @@
--- title: Playing with Phoenix
+-- title: Phoenix websockets
 -- publication_date: 2023-09-10
 -- summary: How much memory does an idle websocket connection take?
 
 #### How much memory does an idle connection take?
 
-Difficult to measure with precision, but seems to be around 33kb.
+Difficult to measure, but seems to be around 33kb.
 
 Amount of connections | VM Mem | VM Mem increase | Avg per connection
 :---:|:---:|:---:|:---:
@@ -19,7 +19,7 @@ Amount of connections | VM Mem | VM Mem increase | Avg per connection
 ![chart with the same information as the table above](images/09_memory.png)
 *Arrows indicate the moment for each burst of 40 connections.*
 
-#### How much memory does it take to broadcast messages?
+#### How much memory does it take to broadcast a message?
 
 Even more difficult to measure. Here's what I did:
 

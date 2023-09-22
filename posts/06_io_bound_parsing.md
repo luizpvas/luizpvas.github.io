@@ -1,10 +1,10 @@
 -- title: IO bound parsing
 -- publication_date: 2023-09-02
--- summary: Threads to the rescue (or not)
+-- summary: Threads to the rescue - or not
 
-In Ruby MRI only one VM instruction can run at a time. No parallelism at all. However, we can have concurrent execution when threads are waiting for IO.
-The Ruby VM executes instructions sequentially for a given thread until it reaches an IO call, which runs in background.
-While waiting for IO, the Ruby VM jumps to another thread and starts executing its instructions until it
+In Ruby MRI, only one VM instruction can run at a time. No parallelism at all. However, we can have concurrent execution when threads are waiting for IO.
+The Ruby VM executes instructions sequentially for a given thread until it reaches an IO call.
+While waiting for IO to finish in background, the Ruby VM jumps to another thread and starts executing its instructions until it
 reaches some other IO call. Rinse and repeat.
 
 I've been working on a [language server for Ruby](https://github.com/luizpvas/holistic-ruby/) for the past couple of months. During initialization,
@@ -21,8 +21,6 @@ app | amount of files | file reading | parsing and indexing | type inference
 newrelic-ruby-agent | 1009 | 0.008818727982s | 2.44959996399s | 0.185098429999s
 sidekiq | 120 | 0.00107567099985s | 0.27185193400s | 0.0096343349996s
 devise | 201 | 0.00229818698971s | 0.29916613001s | 0.011243356999s
-
-The time spent on IO seems pretty short compared to the CPU bound operations.
 
 ![benchmark chart result in percentage](/images/06_io_bound_benchmark.png)
 

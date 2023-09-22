@@ -9,7 +9,7 @@ Controllers are responsible for gathering and formatting data needed **for a spe
 But the dependency goes both ways. Views know about controllers just as much as controllers know about views.
 You can't just change the endpoint of a form or remove a field and expect the app to continue working.
 Forms submit data to one specific endpoint.
-Controllers render one specified view.
+Controllers render one specific view.
 
 Think about how often you have to change both of them, in the same pull request, to ship a working feature to production.
 
