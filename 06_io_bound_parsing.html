@@ -21,9 +21,9 @@
       </div>
 
       <div class="prose dark:prose-invert lg:prose-xl mb-12">
-        <p>In Ruby MRI only one VM instruction can run at a time. No parallelism at all. However, we can have concurrent execution when threads are waiting for IO.
-The Ruby VM executes instructions sequentially for a given thread until it reaches an IO call, which runs in background.
-While waiting for IO, the Ruby VM jumps to another thread and starts executing its instructions until it
+        <p>In Ruby MRI, only one VM instruction can run at a time. No parallelism at all. However, we can have concurrent execution when threads are waiting for IO.
+The Ruby VM executes instructions sequentially for a given thread until it reaches an IO call.
+While waiting for IO to finish in background, the Ruby VM jumps to another thread and starts executing its instructions until it
 reaches some other IO call. Rinse and repeat.</p>
 
 <p>I&#39;ve been working on a <a href="https://github.com/luizpvas/holistic-ruby/">language server for Ruby</a> for the past couple of months. During initialization,
@@ -66,8 +66,6 @@ the language server reads the app&#39;s source code, parses it and indexes the p
 <td style="text-align: center">0.011243356999s</td>
 </tr>
 </tbody></table>
-
-<p>The time spent on IO seems pretty short compared to the CPU bound operations.</p>
 
 <p><img src="/images/06_io_bound_benchmark.png" alt="benchmark chart result in percentage"></p>
 
