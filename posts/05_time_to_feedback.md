@@ -4,7 +4,7 @@
 
 * How fast can you know the code you're writing has no typos or syntax errors?
 * How fast can you know the method you're writing returns the correct value?
-* How fast can you know the method you're writing has the correct side-effects?
+* How fast can you know the method you're writing applies the correct side-effects?
 * How fast can you know the code you're writing does not break some other part of the app? Does a green test suite
   gives you enough confidence or do you have to push to a staging environment and watch the app for a couple days to make sure?
 * How fast can you deploy code to production? How often?
