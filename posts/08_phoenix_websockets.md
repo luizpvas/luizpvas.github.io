@@ -1,5 +1,5 @@
 -- title: Phoenix websockets
--- publication_date: 2023-09-10
+-- publication_date:
 -- summary: How much memory does an idle websocket connection take?
 
 #### How much memory does an idle connection take?
