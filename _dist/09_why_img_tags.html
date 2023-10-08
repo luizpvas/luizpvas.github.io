@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Tracking visits with image tags</title>
+    <link rel="stylesheet" href="index.css" />
+  </head>
+  <body class="bg-slate-100 dark:bg-slate-800 dark:text-white">
+    <main class="max-w-screen-md mx-4 lg:mx-auto pt-4">
+      <a href="index.html" class="inline-flex border dark:border-slate-900 items-center bg-slate-200 dark:bg-slate-700 hover:border-blue-500 px-3 py-1 rounded-full">
+        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-5 h-5">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M10.5 19.5L3 12m0 0l7.5-7.5M3 12h18" />
+        </svg>
+
+        <span class="ml-1">All posts</span>
+      </a>
+
+      <div class="border-b-2 dark:border-slate-900 mb-4">
+        <h1 class="my-6 text-5xl tracking-tight">Tracking visits with image tags</h1>
+        <div class="text-slate-500 dark:text-slate-300 my-2">Published on 2023-10-06</div>
+      </div>
+
+      <div class="prose dark:prose-invert lg:prose-xl mb-12">
+        <p>Have you ever noticed most analytics services use an <code>&lt;img&gt;</code> tag to track visits? Even when there&#39;s
+an integration script, the script dynamically builds an image element with <code>src=trackerURL</code> and appends the image
+to the page instead of sending an AJAX request.</p>
+
+<p>There are 4 main reasons for that.</p>
+
+<ol>
+<li><strong>Images skip preflight CORS requests.</strong> Analytics trackers are designed to run on other people&#39;s websites. Browsers know when you&#39;re sending a request to a domain other than the one you&#39;re currently visiting, and when that happens a preflight OPTIONS request is sent to make sure the server accepts the request. One OPTIONS request plus the actual request you wanted to send. We can cut the amount of requests in half by using an image.</li>
+<li><strong>Images can be used in emails.</strong></li>
+<li><strong>Harder to detect.</strong> I dislike this reason, and I&#39;m not sure it still holds true today. Trackers should be detectable.</li>
+<li><strong>Browser compability</strong>. The <code>fetch</code> API is pretty widespread, but I would consider an <code>&lt;img&gt;</code> tag to just work everywhere. </li>
+</ol>
+
+      </div>
+    </main>
+  </body>
+</html>
