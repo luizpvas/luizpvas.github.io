@@ -2,9 +2,8 @@
 -- publication_date: 2023-10-06
 -- summary:
 
-Have you ever noticed most analytics services use an `<img>` tag to track visits? Even when there's
-an integration script, the script dynamically builds an image element with `src=trackerURL` and appends the image
-to the page instead of sending an AJAX request.
+Have you ever noticed Google Analytics, Fathom, Mixpanel, Hotjar and all others use an `<img>` tag to track visits? Even when there's
+an integration script, the script dynamically builds an image element on the page instead of sending an AJAX request.
 
 There are 4 main reasons for that.
 
