@@ -14,9 +14,9 @@ Some people like to extend Rails with new abstractions like `app/forms`, `app/fi
 
 This is wrong.
 
-Rails should not dictate where we put our code, and even further, abstractions should not dictate where we put our code. There has not been a single bug report in software history from a user telling us there is something wrong with the "form object". When something breaks, people tell us that "searching contacts is not working". Searching contacts is a feature of your app, and your code structure should make that clearly visible.
+Rails should not dictate where we put our code, and even further, abstractions should not dictate where we put our code. There has not been a single bug report in software history from a user telling us there is something wrong with the "form object". When something breaks, people tell us that "searching contacts is not working". Searching contacts is a feature of your app, and your code structure should make that visible.
 
 In the same spirit as [Phoenix is not your application](https://www.youtube.com/watch?v=lDKCSheBc-8): Rails is not your application.
 
-Your application is about customer support, or about email marketing, or about project management, or about selling concert tickets. Your app uses Rails to expose a web interface, and to manage assets, and to schedule background jobs, and to store files, etc. Keep that in mind.
+Your application is about customer support, or about email marketing, or about project management, or about selling concert tickets. Your app uses Rails to expose a web interface, and to manage assets, and to schedule background jobs, and to store files, etc.
 
