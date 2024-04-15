@@ -10,13 +10,10 @@ Those are all great. Use them.
 
 Rails follows the MVC pattern. Looking at Rails from the lens of the layered architecture, controllers and views are part of the presentation layer and models are part of the application, domain and infrastructure layer.
 
-Some people like to extend Rails with new abstractions like `app/forms`, `app/filters`, `app/queries`, `app/notifications`, `app/components` and so on. Such abstractions are born out of the feeling that vanilla Rails does not provide enough places for us to put our code.
+Some people like to extend Rails with new abstractions like `app/forms`, `app/filters`, `app/queries`, `app/notifications`, `app/components` and so on. Such abstractions are born out of the feeling that vanilla Rails does not provide enough places for our code.
 
-This is wrong.
+I believe this is the wrong approach. Rails should not dictate where we put our code just as much as abstractions should not dictate where we put our code.
 
-Rails should not dictate where we put our code, and even further, abstractions should not dictate where we put our code. There has not been a single bug report in software history from a user telling us there is something wrong with the "form object". When something breaks, people tell us that "searching contacts is not working". Searching contacts is a feature of your app, and your code structure should make that visible.
+In the same spirit as [Phoenix is not your application](https://www.youtube.com/watch?v=lDKCSheBc-8): Rails is not your application. Your application is about customer support, or about email marketing, or about project management, or about selling concert tickets. Your app uses Rails to expose a web interface, and to manage assets, and to schedule background jobs, and to store files, etc.
 
-In the same spirit as [Phoenix is not your application](https://www.youtube.com/watch?v=lDKCSheBc-8): Rails is not your application.
-
-Your application is about customer support, or about email marketing, or about project management, or about selling concert tickets. Your app uses Rails to expose a web interface, and to manage assets, and to schedule background jobs, and to store files, etc.
-
+Those are two different things.
