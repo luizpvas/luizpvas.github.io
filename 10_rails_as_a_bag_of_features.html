@@ -29,15 +29,13 @@
 
 <p>Rails follows the MVC pattern. Looking at Rails from the lens of the layered architecture, controllers and views are part of the presentation layer and models are part of the application, domain and infrastructure layer.</p>
 
-<p>Some people like to extend Rails with new abstractions like <code>app/forms</code>, <code>app/filters</code>, <code>app/queries</code>, <code>app/notifications</code>, <code>app/components</code> and so on. Such abstractions are born out of the feeling that vanilla Rails does not provide enough places for us to put our code.</p>
+<p>Some people like to extend Rails with new abstractions like <code>app/forms</code>, <code>app/filters</code>, <code>app/queries</code>, <code>app/notifications</code>, <code>app/components</code> and so on. Such abstractions are born out of the feeling that vanilla Rails does not provide enough places for our code.</p>
 
-<p>This is wrong.</p>
+<p>I believe this is the wrong approach. Rails should not dictate where we put our code just as much as abstractions should not dictate where we put our code.</p>
 
-<p>Rails should not dictate where we put our code, and even further, abstractions should not dictate where we put our code. There has not been a single bug report in software history from a user telling us there is something wrong with the &quot;form object&quot;. When something breaks, people tell us that &quot;searching contacts is not working&quot;. Searching contacts is a feature of your app, and your code structure should make that visible.</p>
+<p>In the same spirit as <a href="https://www.youtube.com/watch?v=lDKCSheBc-8">Phoenix is not your application</a>: Rails is not your application. Your application is about customer support, or about email marketing, or about project management, or about selling concert tickets. Your app uses Rails to expose a web interface, and to manage assets, and to schedule background jobs, and to store files, etc.</p>
 
-<p>In the same spirit as <a href="https://www.youtube.com/watch?v=lDKCSheBc-8">Phoenix is not your application</a>: Rails is not your application.</p>
-
-<p>Your application is about customer support, or about email marketing, or about project management, or about selling concert tickets. Your app uses Rails to expose a web interface, and to manage assets, and to schedule background jobs, and to store files, etc.</p>
+<p>Those are two different things.</p>
 
       </div>
     </main>
