@@ -1,0 +1,79 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/6.65.7/codemirror.min.css"
+    integrity="sha512-uf06llspW44/LZpHzHT6qBOIVODjWtv4MxCricRxkzvopAlSWnTf6hpZTFxuuZcuNE9CBQhqE0Seu1CoRk84nQ=="
+    crossorigin="anonymous" referrerpolicy="no-referrer" />
+
+  <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
+  <script src="https://luizpvas.github.io/libp2a.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/6.65.7/codemirror.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/6.65.7/mode/javascript/javascript.min.js"
+    integrity="sha512-I6CdJdruzGtvDyvdO4YsiAq+pkWf2efgd1ZUSK2FnM/u2VuRASPC7GowWQrWyjxCZn6CT89s3ddGI+be0Ak9Fg=="
+    crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+  <script src="//unpkg.com/alpinejs"></script>
+
+  <script>
+    let editor = null
+
+    window.addEventListener('load', () => {
+      editor = CodeMirror(document.getElementById('code'), {
+        mode: 'javascript',
+        theme: 'default',
+        lineNumbers: true,
+        lineWrapping: true,
+        value: [
+          'const { call } = p2a',
+          '',
+          'const location = "outback downtown houson"',
+          'const address = await call`get the address of ${location}`',
+          '',
+          'window.alert(address.full)'
+        ].join('\n')
+      })
+    })
+
+    Alpine.store('demo', {
+      logs: []
+    })
+
+    Alpine.data('demo', () => ({
+      run: function () {
+        Alpine.store('demo').logs = []
+
+        eval(`
+          (async () => {
+            ${editor.getValue()}
+          })()
+        `)
+      }
+    }))
+
+    p2a.setLogger((message) => {
+      Alpine.store('demo').logs.push(message)
+    })
+  </script>
+</head>
+
+<body>
+  <div class="max-w-[900px] mx-auto border" x-data="demo">
+    <div class="flex">
+      <div class="p-2 w-3/5">
+        <div id="code" class="border border-gray-400 rounded w-full"></div>
+      </div>
+
+      <div class="w-2/5 p-2">
+        <button x-on:click="run" class="w-full bg-blue-500 text-white px-4 py-1 rounded">
+          Run
+        </button>
+
+        <template x-for="log in $store.demo.logs">
+          <pre x-text="log"></pre>
+        </template>
+      </div>
+    </div>
+  </div>
+</body>
+
+</html>
