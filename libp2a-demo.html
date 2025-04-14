@@ -7,7 +7,7 @@
     crossorigin="anonymous" referrerpolicy="no-referrer" />
 
   <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
-  <script src="https://luizpvas.github.io/libp2a.js"></script>
+  <script src="/libp2a.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/6.65.7/codemirror.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/6.65.7/mode/javascript/javascript.min.js"
     integrity="sha512-I6CdJdruzGtvDyvdO4YsiAq+pkWf2efgd1ZUSK2FnM/u2VuRASPC7GowWQrWyjxCZn6CT89s3ddGI+be0Ak9Fg=="
@@ -50,8 +50,8 @@
       }
     }))
 
-    p2a.setLogger((message) => {
-      Alpine.store('demo').logs.push(message)
+    libp2a.setLogger((message) => {
+      Alpine.store('demo').logs.push("[INFO] " + message)
     })
   </script>
 </head>
@@ -68,9 +68,11 @@
           Run
         </button>
 
-        <template x-for="log in $store.demo.logs">
-          <pre x-text="log"></pre>
-        </template>
+        <div class="mt-2">
+          <template x-for="log in $store.demo.logs">
+            <pre x-text="log" class="text-wrap break-all text-xs"></pre>
+          </template>
+        </div>
       </div>
     </div>
   </div>
