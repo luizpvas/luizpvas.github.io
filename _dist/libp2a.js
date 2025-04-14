@@ -21,7 +21,11 @@ var __async = (__this, __arguments, generator) => {
 };
 
 // src/config.ts
-var BASE_URL = process.env.P2A_BASE_URL || "https://p2a.telescope.chat";
+var env = {};
+if (typeof process !== "undefined") {
+  env = process.env;
+}
+var BASE_URL = env.P2A_BASE_URL || "https://p2a.telescope.chat";
 
 // src/request.ts
 var RequestError = class extends Error {
