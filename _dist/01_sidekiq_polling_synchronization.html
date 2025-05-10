@@ -29,17 +29,17 @@
 
 <h3>Polling for scheduled jobs</h3>
 
-<p>We can start many Sidekiq processes. Each process have a single poller and many processors controlled by the <code>concurrency</code> config. The poller is responsible to fetch jobs that are due for execution and enqueuing them.</p>
+<p>We can start many Sidekiq processes. Each process has a single poller and many processors controlled by the <code>concurrency</code> config. The poller is responsible to fetch jobs that are due for execution and enqueuing them, and processors are responsible to executing jobs.</p>
 
-<p>Sidekiq provides the config <code>average_scheduled_poll_interval</code> so we can control how often pollers check for scheduled jobs. There&#39;s a problem, though. Imagine we have 30 Sidekiq processes running in different servers and we set <code>average_scheduled_poll_interval</code> to 15 seconds. The goal is to poll every 15 seconds across the entire cluster.</p>
+<p>Sidekiq provides the config <code>average_scheduled_poll_interval</code> to control how often pollers check for scheduled jobs across the entire cluster. There&#39;s a problem, though. Imagine we have 30 Sidekiq processes running in different servers and we set <code>average_scheduled_poll_interval</code> to 15 seconds. How can those 30 processes coordinate to meet the configured average?</p>
 
-<p>This is a distribution problem. Pollers need to be aware of each other so they can coordinate to meet the goal of 15 seconds interval across all processes. Distributed coordination is an extremely difficult problem to solve correctly, and generally should be avoided.</p>
+<p>This is a distribution problem. Pollers need to be aware of each other so they can agree on the polling interval. Distributed coordination is an extremely difficult problem to solve correctly, and generally should be avoided.</p>
 
-<p>Sidekiq solves this problem by <a href="https://github.com/sidekiq/sidekiq/blob/main/lib/sidekiq/scheduled.rb#L129-L160">sleeping a random amount of time based on the amount of processes in the cluster</a>. We know how many processes are running by looking at the heartbeat data, also stored in Redis.</p>
+<p>Sidekiq solves this problem by <a href="https://github.com/sidekiq/sidekiq/blob/main/lib/sidekiq/scheduled.rb#L129-L160">sleeping a random amount of time based on the amount of processes in the cluster</a>. This is possible because Sidekiq knows how many processes are running by looking at the heartbeat data, also stored in Redis.</p>
 
 <p>Back to our problem. If we have 30 processes and want to poll for scheduled jobs every 15 seconds, we can ask each poller to sleep for <code>(30 * 15 * rand) seconds</code> before polling. Sleep a random of time, then wake up and schedule. Rinse and repeat. Just by doing this we&#39;ll get very close to meeting the 15 seconds interval cluster-wide average.</p>
 
-<p>All processes run the same code with the same configuration. There are no leaders with different responsibilities. There is no coordination involved.</p>
+<p>All processes run the same code with the same configuration. There are no leaders with different responsibilities and there is no coordination involved.</p>
 
       </div>
     </main>

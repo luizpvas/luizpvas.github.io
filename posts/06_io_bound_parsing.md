@@ -25,5 +25,3 @@ devise | 201 | 0.00229818698971s | 0.29916613001s | 0.011243356999s
 ![benchmark chart result in percentage](/images/06_io_bound_benchmark.png)
 
 Even if I managed to make the IO part instantaneous, the overall performance of the system would improve by +- 0,5%. Definetly not IO bound and not worth the trouble of adding threads.
-
-Ractors on the other hand...
