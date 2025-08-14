@@ -2,7 +2,7 @@
 -- publication_date: 2023-08-31
 -- summary: Code that changes together should be close together
 
-In server-side rendered web applications, views are functions `args -> string` and controllers are functions `untrusted_args -> string`. Controllers authorize the request, validate inputs, run some queries, etc. and then respond with a `render` call.
+In server-side rendered MVC web applications, views are functions `args -> string` and controllers are functions `untrusted_args -> string`. Controllers authorize the request, validate inputs, run some queries, etc. and then respond with a `render` call.
 
 Controllers are responsible for gathering and formatting data needed **for a specific view**, with the specific names and fields the view requires. Even though the controller does not care about how things look visually and how they're arranged, it has to know about the shape of the data.
 
@@ -41,11 +41,11 @@ my_app/
         new.html.erb
 ```
 
-All those abstractions look like they're about the same feature, don't they? Why do we insist in putting them so far apart from each other?
+All those abstractions look like they're about the same feature, don't they?
 
-### Controllers and views next to each other
+### Tweaking Rails
 
-Rails provides the method [`prepend_view_path`](https://api.rubyonrails.org/v7.0/classes/ActionView/ViewPaths/ClassMethods.html#method-i-prepend_view_path) that adds a lookup path for templates. You can use it to place your templates right next to the controller that renders them - or wherever makes more sense for your app.
+Rails provides the method [`prepend_view_path`](https://api.rubyonrails.org/v7.0/classes/ActionView/ViewPaths/ClassMethods.html#method-i-prepend_view_path) that adds a lookup path for templates. You can use it to place your templates right next to the controller that renders them.
 
 ```ruby
 class ApplicationController < ActionController::Base

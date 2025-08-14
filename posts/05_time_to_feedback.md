@@ -1,5 +1,5 @@
 -- title: Time to feedback
--- publication_date: 2023-10-01
+-- publication_date:
 -- summary: The most important metric in software development
 
 How fast can you...

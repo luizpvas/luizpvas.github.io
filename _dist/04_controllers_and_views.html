@@ -30,7 +30,7 @@
       </div>
 
       <div class="prose dark:prose-invert lg:prose-xl mb-12">
-        <p>In server-side rendered web applications, views are functions <code>args -&gt; string</code> and controllers are functions <code>untrusted_args -&gt; string</code>. Controllers authorize the request, validate inputs, run some queries, etc. and then respond with a <code>render</code> call.</p>
+        <p>In server-side rendered MVC web applications, views are functions <code>args -&gt; string</code> and controllers are functions <code>untrusted_args -&gt; string</code>. Controllers authorize the request, validate inputs, run some queries, etc. and then respond with a <code>render</code> call.</p>
 
 <p>Controllers are responsible for gathering and formatting data needed <strong>for a specific view</strong>, with the specific names and fields the view requires. Even though the controller does not care about how things look visually and how they&#39;re arranged, it has to know about the shape of the data.</p>
 
@@ -68,11 +68,11 @@ Controllers render one specific view.</p>
         new.html.erb
 </code></pre>
 
-<p>All those abstractions look like they&#39;re about the same feature, don&#39;t they? Why do we insist in putting them so far apart from each other?</p>
+<p>All those abstractions look like they&#39;re about the same feature, don&#39;t they?</p>
 
-<h3>Controllers and views next to each other</h3>
+<h3>Tweaking Rails</h3>
 
-<p>Rails provides the method <a href="https://api.rubyonrails.org/v7.0/classes/ActionView/ViewPaths/ClassMethods.html#method-i-prepend_view_path"><code>prepend_view_path</code></a> that adds a lookup path for templates. You can use it to place your templates right next to the controller that renders them - or wherever makes more sense for your app.</p>
+<p>Rails provides the method <a href="https://api.rubyonrails.org/v7.0/classes/ActionView/ViewPaths/ClassMethods.html#method-i-prepend_view_path"><code>prepend_view_path</code></a> that adds a lookup path for templates. You can use it to place your templates right next to the controller that renders them.</p>
 
 <pre><code class="ruby">class ApplicationController &lt; ActionController::Base
   prepend_view_path Rails.root.join(&quot;app/controllers&quot;)

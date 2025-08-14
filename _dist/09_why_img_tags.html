@@ -32,13 +32,12 @@
       <div class="prose dark:prose-invert lg:prose-xl mb-12">
         <p>Have you ever noticed analytics services such as Google Analytics, Fathom, Mixpanel and Hotjar use an <code>&lt;img&gt;</code> tag to track visits? Even when there&#39;s an integration script, the script dynamically builds an image element instead of directly sending AJAX requests.</p>
 
-<p>There are 4 reasons for that.</p>
+<p>There are good reasons for this:</p>
 
 <ol>
 <li><strong>Images skip preflight CORS requests.</strong> Analytics trackers are designed to run on other people&#39;s websites. Browsers know when you&#39;re sending a request to a domain other than the one you&#39;re currently visiting, and when that happens a preflight OPTIONS request is sent to make sure the server accepts the request. One OPTIONS request plus the actual request you wanted to send. We can cut the amount of requests in half by using an image.</li>
 <li><strong>Images can be used in emails.</strong></li>
-<li><strong>Harder to detect.</strong> I dislike this reason, and I&#39;m not sure it still holds true today. Trackers should be detectable.</li>
-<li><strong>Browser compability</strong>. The <code>fetch</code> API is pretty widespread, but <code>&lt;img&gt;</code> tags just work everywhere. </li>
+<li><strong>Browser compability</strong>. The <code>fetch</code> API is pretty widespread, but <code>&lt;img&gt;</code> tags just work everywhere.</li>
 </ol>
 
       </div>
