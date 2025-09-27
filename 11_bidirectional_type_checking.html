@@ -30,26 +30,14 @@
       </div>
 
       <div class="prose dark:prose-invert lg:prose-xl mb-12">
-        <blockquote>
-<p>Note: I promised myself that I would write an article once I understood how
-bidirectional type checking works. <a href="https://arxiv.org/abs/1306.6032">Complete and Easy Bidirectional Typechecking for
-Higher-Rank Polymorphism</a>
-opens with a claim that their algorithm is extraordinarily simple, which immediately
-hit the ego because I had no idea what I was reading. I couldn&#39;t even read out loud
-the typing rules and typing judgments. I powered through
-it and eventually understood it. So here I am, 3 months later, writing this article.
-What you&#39;re about to read comes from a novice in programming language theory and
-type theory, but I hope</p>
-</blockquote>
-
-<p>This article is intended for people struggling with papers telling you their
+        <p>This article is intended for people struggling with papers telling you their
 algorithm is extraordinarily simple and then giving you this:</p>
 
 <p><img src="/images/11_01.png" alt="image"></p>
 
 <p>After fighting with <a href="https://arxiv.org/abs/1306.6032">Complete and Easy Bidirectional Typechecking for
 Higher-Rank Polymorphism</a> for a while, I
-think I agree that it is actually simple, especially compared with
+think I agree that it is actually simple, especially compared to
 algorithms that require constraint solving and unification. It is simple, but
 definitely not easy. We have some work ahead of us.</p>
 
@@ -106,19 +94,19 @@ to this pattern match.</p>
 
 <p>The typing rule for unit (and literals) is described as follows:</p>
 
-<p><img src="/images/11_02.png" alt=""></p>
+<p><img src="/images/11_02.png" alt="Typing rule for unit"></p>
 
 <p>The &quot;1I=&gt;&quot; on the right hand side is the name of the typing rule. &quot;1&quot; means unit, &quot;I&quot; means introduction,
 and &quot;=&gt;&quot; means synthesis. You can read the name as &quot;the typing rule for synthesizing unit&quot;,
 or &quot;the typing rule for synthesizing literals&quot;.</p>
 
-<p>Notice there is a line with nothing above it. This means that the typing rule has
+<p>Notice there is a line in the middle with nothing above it. This means that the typing rule has
 no premises, so it is always true in all contexts. The literal
 <code>2</code> always synthesizes the type <code>Int</code> in all contexts.
 Contrast this to synthesizing, let&#39;s say, a variable named <code>email</code>. Which type
 should it synthesize? Probably <code>String</code>, but depends, right?
 The fact that it depends means that the typing rule for variables
-must have a premise, that is, a typing judgment above the line.</p>
+must have a premise.</p>
 
 <p>You can read the conclusion, what is below the line, as &quot;under context gamma,
 the unit value synthesizes the type <code>Unit</code>, and produces the same context gamma&quot;.</p>
@@ -132,28 +120,25 @@ other typing rules.</p>
 <p>The context is a container that holds symbols, like variable names, function names, module names, etc.,
 and their types (and some other stuff we&#39;ll talk about later).
 The data structure for context is a list, where the order of the elements
-in the list is the order they appeared in the code. For example, with the
+in the list is the order they appear in the code. For example, the
 following pseudo-js-code</p>
 
 <pre><code class="js">let id = 10;
 let email = &quot;person@example.org&quot;;
 </code></pre>
 
-<p>We would push <code>id</code> and <code>email</code>, in that order, into the context.</p>
+<p>would push <code>id :: Int</code> and <code>email :: String</code>, in that order, into the context.</p>
 
 <h3>Variables</h3>
 
-<p>Before we can synthesize the type of a variable, let&#39;s add a new constructor
+<p>Before we can synthesize the type of a variable we need to add a new constructor
 to our expression type.</p>
 
 <pre><code class="haskell">data Expression
   = LiteralInt Int
   | LiteralString String
-  | Variable Name
+  | Variable String
 </code></pre>
-
-<p>I chose <code>Name</code> instead of <code>String</code> to add some contrast in the type
-definition, but we can think of <code>Name</code> as an alias for <code>String</code>.</p>
 
 <p>Then, let&#39;s update our <code>synthesize</code> function.</p>
 
@@ -162,15 +147,16 @@ synthesize expression =
   case expression of
     LiteralInt _ -&gt; TInt
     LiteralString _ -&gt; TString
-    Variable name -&gt; undefined -- ??
+    Variable varname -&gt; undefined -- what do we do here?
 </code></pre>
 
-<p>To implement the variable case we need to lookup the name in the context.
-The signature I showed earlier was a simplified version for learning purpose. The
-real signatures of <code>synthesize</code> and <code>check</code> are:</p>
+<p>To implement the variable case we need to lookup the name in a context. So let&#39;s
+tweak our typing functions to take a context as an argument. The signature I
+showed earlier was a simplified version, the real signatures of <code>synthesize</code> and
+<code>check</code> are:</p>
 
 <pre><code class="haskell">synthesize :: Expression -&gt; Context -&gt; (Type, Context)
-check :: Expression -&gt; Context -&gt; (Bool, Context)
+check :: Expression -&gt; Type -&gt; Context -&gt; (Bool, Context)
 </code></pre>
 
 <p>The implementation of synthesize, considering the new variable case, is the
@@ -185,20 +171,45 @@ synthesize expression context =
     LiteralString _ -&gt;
       (TString, context)
 
-    Variable name -&gt;
-      case Context.lookup name context of
+    Variable varname -&gt;
+      case Context.lookup varname context of
         Just vartype -&gt; (vartype, context)
-        Nothing -&gt; error $ &quot;unbound variable&quot;
+        Nothing -&gt; error &quot;unknown variable&quot;
 </code></pre>
 
-<p>The literal cases return the context without inspection or modifications. The
+<p>The literal cases now return the given context as-is. The
 variable case defers to <code>Context.lookup</code> to retrieve the type of the variable
-from the context. It then returns the context without modifications.</p>
+from the context. It then returns the same context without modifications because
+synthesizing variables only needs to read the context.</p>
 
-<p>We haven&#39;t seen what <code>Context</code> is and how <code>Context.lookup</code> is implemented.
-Before we get there, let&#39;s look at the definition for the variable typing rule.</p>
+<p>We still haven&#39;t seen what <code>Context</code> is, and the implementation of <code>Context.lookup</code>, but
+before we get there, let&#39;s learn the synthesize variable typing rule.</p>
 
 <p><img src="/images/11_03.png" alt="Typing rule for variables"></p>
+
+<p>Here&#39;s how to read it: &quot;The typing rule for synthesizing variables
+states that, under context gamma, <code>x</code> synthesizes type <code>A</code> and produces
+the same context gamma if, and only if, gamma contains the annotation <code>x : A</code>&quot;.</p>
+
+<h3>Back to contexts</h3>
+
+<p>The typing context contains declarations of universal type variables, term
+variable typings and existential type variables, both solved and unsolved.</p>
+
+<pre><code class="haskell">data Element
+  = TypedVariable Name Type
+
+type Context = [Element]
+
+lookup :: Name -&gt; Context -&gt; Maybe Type
+lookup name context =
+  case context of
+    [] -&gt; Nothing
+    (TypedVariable name&#39; vartype : rest)
+      | name == name&#39; -&gt; Just vartype
+      | otherwise -&gt; lookup name rest
+    _ : rest -&gt; lookup name rest
+</code></pre>
 
       </div>
     </main>
