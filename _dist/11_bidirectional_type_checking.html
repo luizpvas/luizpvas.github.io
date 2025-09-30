@@ -87,8 +87,8 @@ data Type
 and types:</p>
 
 <pre><code class="haskell">synthesize :: Expression -&gt; Type
-synthesize expression =
-  case expression of
+synthesize expr =
+  case expr of
     LiteralInt _ -&gt; TInt
     LiteralString _ -&gt; TString
 </code></pre>
@@ -106,7 +106,7 @@ and &quot;=&gt;&quot; means synthesis. You can read the name as &quot;the typing
 or &quot;the typing rule for synthesizing literals&quot;.</p>
 
 <p>Notice there is a line in the middle with nothing above it. This means that the typing rule has
-no premises, so it is always true in all contexts. The literal
+no premises, so it is always true in all contexts. For example, the literal
 <code>2</code> always synthesizes the type <code>Int</code> in all contexts.
 Contrast this to synthesizing, let&#39;s say, a variable named <code>email</code>. Which type
 should it synthesize? Probably <code>String</code>, but depends, right?
@@ -123,7 +123,7 @@ as input we return the same value as output. But this is not the case for
 other typing rules.</p>
 
 <p>The context is a container that holds symbols, like variable names, function names, module names, etc.,
-and their types (and some other stuff we&#39;ll talk about later).
+and their types (and some other stuff we&#39;re about to see).
 The data structure for context is a list, where the order of the elements
 in the list is the order they appear in the code. For example, the
 following pseudo-js-code</p>
@@ -161,15 +161,15 @@ showed earlier was a simplified version. The real signatures of <code>synthesize
 <code>check</code> are:</p>
 
 <pre><code class="haskell">synthesize :: Expression -&gt; Context -&gt; (Type, Context)
-check :: Expression -&gt; Type -&gt; Context -&gt; (Bool, Context)
+check :: Expression -&gt; Type -&gt; Context -&gt; Context
 </code></pre>
 
 <p>The implementation of synthesize, considering the new variable case, is the
 following:</p>
 
 <pre><code class="haskell">synthesize :: Expression -&gt; Context -&gt; (Type, Context)
-synthesize expression context =
-  case expression of
+synthesize expr context =
+  case expr of
     LiteralInt _ -&gt;
       (TInt, context)
 
@@ -184,17 +184,16 @@ synthesize expression context =
 
 <p>The literal cases now return the given context as-is. The
 variable case defers to <code>Context.lookup</code> to retrieve the type of the variable
-from the context. It then returns the same context without modifications because
-synthesizing variables only needs to read the context.</p>
+from the context. It then returns the same context without modifications.</p>
 
 <p>We still haven&#39;t seen what <code>Context</code> is, and the implementation of <code>Context.lookup</code>, but
-before we get there, let&#39;s learn the typing rule.</p>
+before we get there, the typing rule for synthesizing variables is the following:</p>
 
 <p><img src="/images/11_03.png" alt="Typing rule for variables"></p>
 
 <p>Here&#39;s how to read it: &quot;The typing rule for synthesizing variables
 states that, under context gamma, <code>x</code> synthesizes type <code>A</code> and produces
-the same context gamma if, and only if, gamma contains the annotation <code>x : A</code>&quot;.</p>
+the same context gamma if gamma contains the annotation <code>x : A</code>&quot;.</p>
 
 <h3>Back to contexts</h3>
 
@@ -231,7 +230,7 @@ above we can successfully synthesize variables.</p>
 
 <h3>Annotations</h3>
 
-<p>The next typing rule we need to support now are type annotations. It does not
+<p>The next typing rule we&#39;re going to support is type annotations. It does not
 matter if the language defines annotation as a separate construct (like Haskell)
 from functions and values or if annotations are written next to the expressions
 (like Typescript).</p>
@@ -244,26 +243,28 @@ from functions and values or if annotations are written next to the expressions
 The conclusion of this typing rule states that &quot;under context gamma, <code>e has type A</code>
 synthesizes type <code>A</code> and produces context delta&quot;.</p>
 
-<p>Synthesizing type <code>A</code> for the annotation <code>e has type A</code> seems kinda redundant,
+<p>Synthesizing type <code>A</code> for the annotation <code>e : A</code> seems kinda redundant,
 but the premise of the rule provides interesting guarantees. First, <code>A</code> must
 be well formed. This is denoted by the expression <code>Γ ⊢ A</code>. This ensures that
 the annotation references a valid type in the program.</p>
 
 <p>The second part of the premise, <code>Γ ⊢ e &lt;= A ⊣ Δ</code>, adds an extra correctness
 guarantee to the process. The compiler cannot simply trust the annotation
-provided and treat <code>e</code> as having type <code>A</code>. Doing so would make the type
-system unsound. So instead of trusting, we need to check that <code>e</code> has type <code>A</code>.</p>
+and assume <code>e</code> actually have type <code>A</code>. Doing so would make the type
+system unsound. So instead of trusting, we need to check.</p>
 
+<blockquote>
 <p>Just to be clear we&#39;re on the same page about the notation, <code>e =&gt; A</code> is read
 as &quot;e synthesizes type A&quot; and <code>e &lt;= A</code> is read as &quot;e checks against type A&quot;.</p>
+</blockquote>
 
 <p>This rule is our first encounter with the recursion between synthesizing
-and type checking. In order to synthesizse annotation expression we need to
+and checking. In order to synthesizse annotation expression we need to
 check it, and during checking we might need to synthesize.</p>
 
 <h3>Is the type well formed?</h3>
 
-<p>The first premise of synthesizing the annotation <code>e has type A</code> ensures that the
+<p>The first premise of synthesizing the annotation <code>e : A</code> ensures that the
 type <code>A</code> is well formed. The following set of rules describe the well-formedness
 of types:</p>
 
@@ -272,14 +273,87 @@ of types:</p>
 <p>Here&#39;s an explanation of the rules:</p>
 
 <ul>
-<li><strong>UvarWF</strong>: A type variable is well formed if it exists in the context.</li>
-<li><strong>UnitWF</strong>: The unit type is always well formed.</li>
+<li><strong>UvarWF</strong>: A type variable is well formed if it exists in the context. Do not
+confuse type variables with expression variable.</li>
+<li><strong>UnitWF</strong>: The unit type is always well formed. The same is true for all literal types.</li>
 <li><strong>ArrowWF</strong>: The function type <code>A -&gt; B</code> is well formed if <code>A</code> and <code>B</code> are well formed.</li>
 <li><strong>ForallWF</strong>: The quantification <code>forall x.A</code> is well formed if <code>A</code> is well formed under
-context gamma with <code>x</code> added to the gamma context.</li>
+context gamma with <code>x</code> added to gamma.</li>
 <li><strong>EvarWF</strong>: The existential type <code>â</code> is well formed if it exists in the context.</li>
 <li><strong>SolvedEvarWF</strong>: The solved existential type <code>â</code> is well formed if it exists in the context.</li>
 </ul>
+
+<p>We haven&#39;t talked about type variables, quantification and existentials, but I
+thought it was useful to provide the whole definition. The implementation of this
+function would look the following for the types we already have:</p>
+
+<pre><code class="haskell">isTypeWellFormed :: Type -&gt; Context -&gt; Bool
+isTypeWellFormed ty context =
+  case ty of
+    TInt    -&gt; True -- UnitWF
+    TString -&gt; True -- UnitWF
+</code></pre>
+
+<h3>Checking</h3>
+
+<p>The second premise of synthesizing the annotation <code>e has type A</code> ensures that
+the program is not lying to the compiler. It checks that the expression <code>e</code>
+type checks against <code>A</code>.</p>
+
+<p>In order to implement <code>check</code> we need at least one typing rule, so let&#39;s stash
+the annotation synthesize rule and look at the simplest rule for checking
+literals:</p>
+
+<p><img src="/images/11_06.png" alt="type_rule_check_literal"></p>
+
+<p>This is very, very similar to the rule for synthesizing literals. The only
+difference is that arrows are flipped. The implementation of check is as follows:</p>
+
+<pre><code class="haskell">check :: Expression -&gt; Type -&gt; Context -&gt; Context
+check expr ty context =
+  case (expr, ty) of
+   (LiteralInt _, TInt) -&gt;
+     context
+
+    (LiteralString _, TString) -&gt;
+      context
+
+    (_, _) -&gt;
+      error &quot;Type mismatch&quot;
+</code></pre>
+
+<h3>Back to synthesizing annotations</h3>
+
+<p>We now have enough structure in place to synthesize annotations.</p>
+
+<pre><code class="diff">data Expression
+  = LiteralInt Int
+  | LiteralString String
+  | Variable String
++ | Annotation Expression Type
+
+
+synthesize :: Expression -&gt; Context -&gt; (Type, Context)
+synthesize expr context =
+  case expr of
+    LiteralInt _ -&gt;
+      (TInt, context)
+
+    LiteralString _ -&gt;
+      (TString, context)
+
+    Variable varname -&gt;
+      case Context.lookup varname context of
+        Just vartype -&gt; (vartype, context)
+        Nothing -&gt; error &quot;unknown variable&quot;
+
++   Annotation e ty -&gt;
++     if isTypeWellFormed ty context then
++       let delta = check e ty context
++        in (ty, delta)
++     else
++       error &quot;Invalid type&quot;
+</code></pre>
 
       </div>
     </main>
