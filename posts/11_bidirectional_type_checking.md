@@ -9,13 +9,13 @@ algorithm is extraordinarily simple and then giving you this:
 
 After fighting with [Complete and Easy Bidirectional Typechecking for
 Higher-Rank Polymorphism](https://arxiv.org/abs/1306.6032) for a while, I
-think I agree that it is actually simple, especially compared to
+I agree that it is actually simple, especially compared to
 algorithms that require constraint solving and unification. It is simple, but
 definitely not easy. We have some work ahead of us.
 
 ### Type checking
 
-Type checking is a process that validates expressions against type rules.
+Type checking is the process that validates expressions against type rules.
 
 Expressions are usually obtained from parsing, which is the process that converts
 text, the source code, into a data structure that is better suited for inspection
@@ -130,7 +130,7 @@ synthesize expression =
 
 To implement the variable case we need to lookup the name in a context. So let's
 tweak our typing functions to take a context as an argument. The signature I
-showed earlier was a simplified version, the real signatures of `synthesize` and
+showed earlier was a simplified version. The real signatures of `synthesize` and
 `check` are:
 
 ```haskell
@@ -163,7 +163,7 @@ from the context. It then returns the same context without modifications because
 synthesizing variables only needs to read the context.
 
 We still haven't seen what `Context` is, and the implementation of `Context.lookup`, but
-before we get there, let's learn the synthesize variable typing rule.
+before we get there, let's learn the typing rule.
 
 ![Typing rule for variables](/images/11_03.png)
 
@@ -173,8 +173,13 @@ the same context gamma if, and only if, gamma contains the annotation `x : A`".
 
 ### Back to contexts
 
-The typing context contains declarations of universal type variables, term
-variable typings and existential type variables, both solved and unsolved.
+Contexts contain declarations of quantifications (forall), term
+variable typings and existentials, both solved and unsolved. The underlying
+data structure is a list, where the order of the elements represent the order
+of the facts we have gathered from the program we are type checking.
+
+Let's define the `Context` type as a list of `Element` and implement the
+`lookup` function we need.
 
 ```haskell
 data Element
@@ -182,12 +187,70 @@ data Element
 
 type Context = [Element]
 
-lookup :: Name -> Context -> Maybe Type
-lookup name context =
+lookup :: String -> Context -> Maybe Type
+lookup varname context =
   case context of
-    [] -> Nothing
-    (TypedVariable name' vartype : rest)
-      | name == name' -> Just vartype
-      | otherwise -> lookup name rest
-    _ : rest -> lookup name rest
+    [] ->
+      Nothing
+
+    (TypedVariable name vartype : rest) ->
+      if varname == name
+      then Just vartype
+      else lookup varname rest
+
+    (_ : rest) ->
+      lookup name rest
 ```
+
+Apart from the fact we cannot yet add definitions to the context, with the code
+above we can successfully synthesize variables.
+
+### Annotations
+
+The next typing rule we need to support now are type annotations. It does not
+matter if the language defines annotation as a separate construct (like Haskell)
+from functions and values or if annotations are written next to the expressions
+(like Typescript).
+
+The rule synthesizing annotations is as follows:
+
+![annotation_type_rule](/images/11_04.png)
+
+This is a bit more complicated than we have seen so far, but we're not afraid.
+The conclusion of this typing rule states that "under context gamma, `e has type A`
+synthesizes type `A` and produces context delta".
+
+Synthesizing type `A` for the annotation `e has type A` seems kinda redundant,
+but the premise of the rule provides interesting guarantees. First, `A` must
+be well formed. This is denoted by the expression `Γ ⊢ A`. This ensures that
+the annotation references a valid type in the program.
+
+The second part of the premise, `Γ ⊢ e <= A ⊣ Δ`, adds an extra correctness
+guarantee to the process. The compiler cannot simply trust the annotation
+provided and treat `e` as having type `A`. Doing so would make the type
+system unsound. So instead of trusting, we need to check that `e` has type `A`.
+
+Just to be clear we're on the same page about the notation, `e => A` is read
+as "e synthesizes type A" and `e <= A` is read as "e checks against type A".
+
+This rule is our first encounter with the recursion between synthesizing
+and type checking. In order to synthesizse annotation expression we need to
+check it, and during checking we might need to synthesize.
+
+### Is the type well formed?
+
+The first premise of synthesizing the annotation `e has type A` ensures that the
+type `A` is well formed. The following set of rules describe the well-formedness
+of types:
+
+![annotation_type_rule](/images/11_05.png)
+
+Here's an explanation of the rules:
+
+- **UvarWF**: A type variable is well formed if it exists in the context.
+- **UnitWF**: The unit type is always well formed.
+- **ArrowWF**: The function type `A -> B` is well formed if `A` and `B` are well formed.
+- **ForallWF**: The quantification `forall x.A` is well formed if `A` is well formed under
+  context gamma with `x` added to the gamma context.
+- **EvarWF**: The existential type `â` is well formed if it exists in the context.
+- **SolvedEvarWF**: The solved existential type `â` is well formed if it exists in the context.
