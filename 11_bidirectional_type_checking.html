@@ -1,10 +1,11 @@
 <!DOCTYPE html>
 <html lang="en">
   <head>
+    <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>Bidirectional type checking</title>
     <link rel="stylesheet" href="index.css" />
-    
+
     <script async src="https://www.googletagmanager.com/gtag/js?id=G-7TMTHS88G9"></script>
     <script>
       window.dataLayer = window.dataLayer || [];
@@ -13,6 +14,10 @@
 
       gtag('config', 'G-7TMTHS88G9');
     </script>
+
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.11.1/styles/github.min.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.11.1/highlight.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.11.1/languages/haskell.min.js"></script>
   </head>
   <body class="bg-slate-100 dark:bg-slate-800 dark:text-white">
     <main class="max-w-screen-md mx-4 lg:mx-auto pt-4">
@@ -37,13 +42,13 @@ algorithm is extraordinarily simple and then giving you this:</p>
 
 <p>After fighting with <a href="https://arxiv.org/abs/1306.6032">Complete and Easy Bidirectional Typechecking for
 Higher-Rank Polymorphism</a> for a while, I
-think I agree that it is actually simple, especially compared to
+I agree that it is actually simple, especially compared to
 algorithms that require constraint solving and unification. It is simple, but
 definitely not easy. We have some work ahead of us.</p>
 
 <h3>Type checking</h3>
 
-<p>Type checking is a process that validates expressions against type rules.</p>
+<p>Type checking is the process that validates expressions against type rules.</p>
 
 <p>Expressions are usually obtained from parsing, which is the process that converts
 text, the source code, into a data structure that is better suited for inspection
@@ -152,7 +157,7 @@ synthesize expression =
 
 <p>To implement the variable case we need to lookup the name in a context. So let&#39;s
 tweak our typing functions to take a context as an argument. The signature I
-showed earlier was a simplified version, the real signatures of <code>synthesize</code> and
+showed earlier was a simplified version. The real signatures of <code>synthesize</code> and
 <code>check</code> are:</p>
 
 <pre><code class="haskell">synthesize :: Expression -&gt; Context -&gt; (Type, Context)
@@ -183,7 +188,7 @@ from the context. It then returns the same context without modifications because
 synthesizing variables only needs to read the context.</p>
 
 <p>We still haven&#39;t seen what <code>Context</code> is, and the implementation of <code>Context.lookup</code>, but
-before we get there, let&#39;s learn the synthesize variable typing rule.</p>
+before we get there, let&#39;s learn the typing rule.</p>
 
 <p><img src="/images/11_03.png" alt="Typing rule for variables"></p>
 
@@ -193,25 +198,92 @@ the same context gamma if, and only if, gamma contains the annotation <code>x : 
 
 <h3>Back to contexts</h3>
 
-<p>The typing context contains declarations of universal type variables, term
-variable typings and existential type variables, both solved and unsolved.</p>
+<p>Contexts contain declarations of quantifications (forall), term
+variable typings and existentials, both solved and unsolved. The underlying
+data structure is a list, where the order of the elements represent the order
+of the facts we have gathered from the program we are type checking.</p>
+
+<p>Let&#39;s define the <code>Context</code> type as a list of <code>Element</code> and implement the
+<code>lookup</code> function we need.</p>
 
 <pre><code class="haskell">data Element
   = TypedVariable Name Type
 
 type Context = [Element]
 
-lookup :: Name -&gt; Context -&gt; Maybe Type
-lookup name context =
+lookup :: String -&gt; Context -&gt; Maybe Type
+lookup varname context =
   case context of
-    [] -&gt; Nothing
-    (TypedVariable name&#39; vartype : rest)
-      | name == name&#39; -&gt; Just vartype
-      | otherwise -&gt; lookup name rest
-    _ : rest -&gt; lookup name rest
+    [] -&gt;
+      Nothing
+
+    (TypedVariable name vartype : rest) -&gt;
+      if varname == name
+      then Just vartype
+      else lookup varname rest
+
+    (_ : rest) -&gt;
+      lookup name rest
 </code></pre>
+
+<p>Apart from the fact we cannot yet add definitions to the context, with the code
+above we can successfully synthesize variables.</p>
+
+<h3>Annotations</h3>
+
+<p>The next typing rule we need to support now are type annotations. It does not
+matter if the language defines annotation as a separate construct (like Haskell)
+from functions and values or if annotations are written next to the expressions
+(like Typescript).</p>
+
+<p>The rule synthesizing annotations is as follows:</p>
+
+<p><img src="/images/11_04.png" alt="annotation_type_rule"></p>
+
+<p>This is a bit more complicated than we have seen so far, but we&#39;re not afraid.
+The conclusion of this typing rule states that &quot;under context gamma, <code>e has type A</code>
+synthesizes type <code>A</code> and produces context delta&quot;.</p>
+
+<p>Synthesizing type <code>A</code> for the annotation <code>e has type A</code> seems kinda redundant,
+but the premise of the rule provides interesting guarantees. First, <code>A</code> must
+be well formed. This is denoted by the expression <code>Γ ⊢ A</code>. This ensures that
+the annotation references a valid type in the program.</p>
+
+<p>The second part of the premise, <code>Γ ⊢ e &lt;= A ⊣ Δ</code>, adds an extra correctness
+guarantee to the process. The compiler cannot simply trust the annotation
+provided and treat <code>e</code> as having type <code>A</code>. Doing so would make the type
+system unsound. So instead of trusting, we need to check that <code>e</code> has type <code>A</code>.</p>
+
+<p>Just to be clear we&#39;re on the same page about the notation, <code>e =&gt; A</code> is read
+as &quot;e synthesizes type A&quot; and <code>e &lt;= A</code> is read as &quot;e checks against type A&quot;.</p>
+
+<p>This rule is our first encounter with the recursion between synthesizing
+and type checking. In order to synthesizse annotation expression we need to
+check it, and during checking we might need to synthesize.</p>
+
+<h3>Is the type well formed?</h3>
+
+<p>The first premise of synthesizing the annotation <code>e has type A</code> ensures that the
+type <code>A</code> is well formed. The following set of rules describe the well-formedness
+of types:</p>
+
+<p><img src="/images/11_05.png" alt="annotation_type_rule"></p>
+
+<p>Here&#39;s an explanation of the rules:</p>
+
+<ul>
+<li><strong>UvarWF</strong>: A type variable is well formed if it exists in the context.</li>
+<li><strong>UnitWF</strong>: The unit type is always well formed.</li>
+<li><strong>ArrowWF</strong>: The function type <code>A -&gt; B</code> is well formed if <code>A</code> and <code>B</code> are well formed.</li>
+<li><strong>ForallWF</strong>: The quantification <code>forall x.A</code> is well formed if <code>A</code> is well formed under
+context gamma with <code>x</code> added to the gamma context.</li>
+<li><strong>EvarWF</strong>: The existential type <code>â</code> is well formed if it exists in the context.</li>
+<li><strong>SolvedEvarWF</strong>: The solved existential type <code>â</code> is well formed if it exists in the context.</li>
+</ul>
 
       </div>
     </main>
+
+    <script>hljs.highlightAll();</script>
   </body>
 </html>
