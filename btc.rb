@@ -39,6 +39,12 @@ class Context
     typedvar&.then { it.type }
   end
 
+  def replace(element_old, element_new)
+    elements = @elements.map { |element| element == element_old ? element_new : element }
+
+    Context.new(elements)
+  end
+
   def apply(type)
     case type
     in Type::Int
@@ -172,8 +178,45 @@ def subtype(type_a, type_b, context)
     raise "subtype mismatch: #{name_a} #{name_b}" if name_a != name_b
     context
 
+  in [_, Type::Existential(existential_name)]
+    raise "circular instantiation: #{type_a} #{type_b}" if occurs?(existential_name, type_a)
+    instantiate_right(type_a, existential_name, context)
+
   else
     raise "subtype mismatch: #{type_a} #{type_b}"
+  end
+end
+
+def instantiate_right(type, existential_name, context)
+  if type_well_formed?(type, context)
+    return context.replace(
+      Context::Element::UnsolvedExistential.new(existential_name),
+      Context::Element::SolvedExistential.new(existential_name, type)
+    )
+  end
+
+  raise "invalid right instantiation: #{type} #{existential_name}"
+end
+
+def occurs?(name, type)
+  case type
+  in Type::Int
+    false
+
+  in Type::String
+    false
+
+  in Type::Variable(var_name)
+    var_name == name
+
+  in Type::Existential(existential_name)
+    existential_name == name
+
+  in Type::Lambda(arg_type, return_type)
+    occurs?(name, arg_type) || occurs?(name, return_type)
+
+  else
+    raise "unknown type: #{type}"
   end
 end
 
@@ -193,4 +236,4 @@ puts synthesize(
 puts synthesize(
   Expression::Lambda.new("x", Expression::LiteralInt.new(1)),
   Context.empty
-) # => #<data Type::String>
+) # => #<data Type::Lambda argtype=#<data Type::Existential name="x1">, bodytype=#<data Type::Existential name="x2">>
