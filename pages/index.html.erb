@@ -36,26 +36,6 @@
           </a>
         <% end %>
       </div>
-
-      <div class="space-y-4">
-        <div class="mt-8 flex items-center space-x-4">
-          <div class="h-[2px] bg-gray-200 dark:bg-slate-700 flex-1"></div>
-          <h2 class="font-bold uppercase text-center">Dev journal</h2>
-          <div class="h-[2px] bg-gray-200 dark:bg-slate-700 flex-1"></div>
-        </div>
-
-        <div class="grid gap-2 mx-2 lg:mx-0">
-          <% journal.each do |journal_post| %>
-            <a href="/<%= journal_post.id %>.html" class="block border-2 dark:border-slate-900 bg-white dark:bg-slate-700 rounded p-4 hover:border-blue-500">
-              <div class="font-bold text-lg"><%= journal_post.metadata.title %></div>
-
-              <p><%= journal_post.metadata.summary %></p>
-
-              <div class="mt-1 text-sm text-slate-500 dark:text-slate-400">Published on <%= journal_post.metadata.publication_date %></div>
-            </a>
-          <% end %>
-        </div>
-      </div>
     </main>
   </body>
 </html>

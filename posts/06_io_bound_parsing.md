@@ -1,5 +1,5 @@
 -- title: IO bound parsing
--- publication_date: 2023-09-02
+-- publication_date:
 -- summary: Threads to the rescue - or not
 
 In Ruby MRI, only one VM instruction can run at a time. No parallelism at all. However, we can have concurrent execution when threads are waiting for IO.

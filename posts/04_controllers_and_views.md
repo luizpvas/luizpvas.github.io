@@ -1,5 +1,5 @@
 -- title: Controllers and views
--- publication_date: 2023-08-31
+-- publication_date:
 -- summary: Code that changes together should be close together
 
 In server-side rendered MVC web applications, views are functions `args -> string` and controllers are functions `untrusted_args -> string`. Controllers authorize the request, validate inputs, run some queries, etc. and then respond with a `render` call.

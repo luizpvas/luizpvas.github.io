@@ -1,5 +1,5 @@
 -- title: Rails as a bag of features
--- publication_date: 2023-10-29
+-- publication_date:
 -- summary:
 
 Sending and receiving emails, storing attachments, generating thumbnails, CSRF protection, XSS protection, mime type negotiation, session and cookie management, password hashing, rendering templates, broadcasting websocket events, broadcasting DOM patches, scheduling background jobs, managing database migrations, caching, integrated testing, app-wide configuration and secrets, asset management, database encrypted attributes, probably the best active record pattern implementation - and a lot more.

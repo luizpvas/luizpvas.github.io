@@ -1,5 +1,5 @@
 -- title: Fillfactor
--- publication_date: 2023-03-05
+-- publication_date:
 -- summary: PostgreSQL can leave some empty space in the storage pages for tables with a high volume of updates.
 
 PostgreSQL uses a [page-based storage system](https://www.postgresql.org/docs/current/storage-page-layout.html) to store data. A page is a fixed-size block of data that is read from and written to disk as a unit.

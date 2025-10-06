@@ -34,33 +34,40 @@ Those functions are `synthesize`, which infers the type of an expression, and
 `check`, which checks if the expression has the expected type. For learning
 purposes, it is sufficient to think of their signatures as:
 
-```haskell
-synthesize :: Expression -> Type
-check :: Expression -> Type -> Bool
+```ruby
+def synthesize(expr)  # returns a type
+def check(expr, type) # returns true or false
 ```
 
 At this moment, we have no expressions nor types to work with, so let's
 draw a starting line.
 
-```haskell
-data Expression
-  = LiteralInt Int
-  | LiteralString String
+```ruby
+module Expression
+  LiteralInt = Data.define(:value)
+  LiteralString = Data.define(:value)
+end
 
-data Type
-  = TInt
-  | TString
+module Type
+  Int = Data.define
+  String = Data.define
+end
 ```
 
 The implementation for `synthesize` is the following for this set of expressions
 and types:
 
-```haskell
-synthesize :: Expression -> Type
-synthesize expr =
-  case expr of
-    LiteralInt _ -> TInt
-    LiteralString _ -> TString
+```ruby
+def synthesize(expr)
+  case expr
+  in Expression::LiteralInt
+    Type::Int.new
+  in Expression::LiteralString
+    Type::String.new
+  else
+    raise "unknown expression"
+  end
+end
 ```
 
 All literal primitives follow this pattern. If we added
@@ -103,29 +110,36 @@ let id = 10;
 let email = "person@example.org";
 ```
 
-would push `id :: Int` and `email :: String`, in that order, into the context.
+would push `id : Int` and `email : String`, in that order, into the context.
 
 ### Variables
 
 Before we can synthesize the type of a variable we need to add a new constructor
 to our expression type.
 
-```haskell
-data Expression
-  = LiteralInt Int
-  | LiteralString String
-  | Variable String
+```diff
+module Expression
+  LiteralInt = Data.define(:value)
+  LiteralString = Data.define(:value)
++ Variable = Data.define(:name)
+end
 ```
 
-Then, let's update our `synthesize` function.
+Then, update the `synthesize` function with a new pattern.
 
-```haskell
-synthesize :: Expression -> Type
-synthesize expression =
-  case expression of
-    LiteralInt _ -> TInt
-    LiteralString _ -> TString
-    Variable varname -> undefined -- what do we do here?
+```diff
+def synthesize(expr)
+  case expr
+  in Expression::LiteralInt
+    Type::Int.new
+  in Expression::LiteralString
+    Type::String.new
++ in Expression::Variable(name)
++   # what do we do here?
+  else
+    raise "unknown expression"
+  end
+end
 ```
 
 To implement the variable case we need to lookup the name in a context. So let's
@@ -133,35 +147,39 @@ tweak our typing functions to take a context as an argument. The signature I
 showed earlier was a simplified version. The real signatures of `synthesize` and
 `check` are:
 
-```haskell
-synthesize :: Expression -> Context -> (Type, Context)
-check :: Expression -> Type -> Context -> Context
+```ruby
+def synthesize(expr, context)  # returns a (type, context)
+def check(expr, type, context) # returns (boolean, context)
 ```
 
-The implementation of synthesize, considering the new variable case, is the
-following:
+The implementation of synthesize, considering the new variable case properly
+handling context input and output is the following:
 
-```haskell
-synthesize :: Expression -> Context -> (Type, Context)
-synthesize expr context =
-  case expr of
-    LiteralInt _ ->
-      (TInt, context)
+```ruby
+def synthesize(expr, context)
+  case expr
+  in Expression::LiteralInt
+    [Type::Int.new, context]
 
-    LiteralString _ ->
-      (TString, context)
+  in Expression::LiteralString
+    [Type::String.new, context]
 
-    Variable varname ->
-      case Context.lookup varname context of
-        Just vartype -> (vartype, context)
-        Nothing -> error "unknown variable"
+  in Expression::Variable(varname)
+    vartype = context.lookup(varname)
+    return [vartype, context] if vartype
+    raise "unknown variable"
+
+  else
+    raise "unknown expression"
+  end
+end
 ```
 
 The literal cases now return the given context as-is. The
-variable case defers to `Context.lookup` to retrieve the type of the variable
+variable case defers to `Context#lookup` to retrieve the type of the variable
 from the context. It then returns the same context without modifications.
 
-We still haven't seen what `Context` is, and the implementation of `Context.lookup`, but
+We still haven't seen what `Context` is, and the implementation of `Context#lookup`, but
 before we get there, the typing rule for synthesizing variables is the following:
 
 ![Typing rule for variables](/images/11_03.png)
@@ -180,25 +198,27 @@ of the facts we have gathered from the program we are type checking.
 Let's define the `Context` type as a list of `Element` and implement the
 `lookup` function we need.
 
-```haskell
-data Element
-  = TypedVariable Name Type
+```ruby
+class Context
+  module Element
+    TypedVariable = Data.define(:name, :type)
+  end
 
-type Context = [Element]
+  def initialize
+    @elements = []
+  end
 
-lookup :: String -> Context -> Maybe Type
-lookup varname context =
-  case context of
-    [] ->
-      Nothing
+  def lookup(name)
+    typedvar = @elements.find do |element|
+      case element
+      in Element::TypedVariable(varname, _) then varname == name
+      else false
+      end
+    end
 
-    (TypedVariable name vartype : rest) ->
-      if varname == name
-      then Just vartype
-      else lookup varname rest
-
-    (_ : rest) ->
-      lookup name rest
+    typedvar&.then { it.type }
+  end
+end
 ```
 
 Apart from the fact we cannot yet add definitions to the context, with the code
@@ -206,7 +226,7 @@ above we can successfully synthesize variables.
 
 ### Annotations
 
-The next typing rule we're going to support is type annotations. It does not
+The next typing rule for our language is annotation. It does not
 matter if the language defines annotation as a separate construct (like Haskell)
 from functions and values or if annotations are written next to the expressions
 (like Typescript).
@@ -215,7 +235,7 @@ The rule synthesizing annotations is as follows:
 
 ![annotation_type_rule](/images/11_04.png)
 
-This is a bit more complicated than we have seen so far, but we're not afraid.
+This is a bit more complicated than we have seen so far.
 The conclusion of this typing rule states that "under context gamma, `e has type A`
 synthesizes type `A` and produces context delta".
 
@@ -244,7 +264,7 @@ of types:
 
 ![annotation_type_rule](/images/11_05.png)
 
-Here's an explanation of the rules:
+You can read this rules as:
 
 - **UvarWF**: A type variable is well formed if it exists in the context. Do not
   confuse type variables with expression variable.
@@ -255,16 +275,18 @@ Here's an explanation of the rules:
 - **EvarWF**: The existential type `â` is well formed if it exists in the context.
 - **SolvedEvarWF**: The solved existential type `â` is well formed if it exists in the context.
 
-We haven't talked about type variables, quantification and existentials, but I
-thought it was useful to provide the whole definition. The implementation of this
+We haven't talked about type variables, quantification and existentials, but it
+is useful to see the whole definition. The implementation of this
 function would look the following for the types we already have:
 
-```haskell
-isTypeWellFormed :: Type -> Context -> Bool
-isTypeWellFormed ty context =
-  case ty of
-    TInt    -> True -- UnitWF
-    TString -> True -- UnitWF
+```ruby
+def type_well_formed?(type, context)
+  case type
+  in Type::Int then true # UnitWF rule
+  in Type::String then true # UnitWF rule
+  else raise "unknown type: #{type}"
+  end
+end
 ```
 
 ### Checking
@@ -282,50 +304,142 @@ literals:
 This is very, very similar to the rule for synthesizing literals. The only
 difference is that arrows are flipped. The implementation of check is as follows:
 
-```haskell
-check :: Expression -> Type -> Context -> Context
-check expr ty context =
-  case (expr, ty) of
-   (LiteralInt _, TInt) ->
-     context
+```ruby
+def check(expr, type, context)
+  case [expr, type]
 
-    (LiteralString _, TString) ->
-      context
+  in [Expression::LiteralInt, Type::Int]
+    context
 
-    (_, _) ->
-      error "Type mismatch"
+  in [Expression::LiteralString, Type::String]
+    context
+
+  else
+    raise "type mismatch"
+  end
+end
 ```
+
+Instead of returning bools to indicate if it typed checked or not, we're going to
+raise an error when a type mismatch occurs, and we're going to successfully return
+when valid.
 
 ### Back to synthesizing annotations
 
 We now have enough structure in place to synthesize annotations.
 
 ```diff
-data Expression
-  = LiteralInt Int
-  | LiteralString String
-  | Variable String
-+ | Annotation Expression Type
+module Expression
+  LiteralInt = Data.define(:value)
+  LiteralString = Data.define(:value)
+  Variable = Data.define(:name)
++ Annotation = Data.define(:expression, :type)
+end
 
+def synthesize(expr, context)
+  case expr
+  in Expression::LiteralInt
+    [Type::Int.new, context]
 
-synthesize :: Expression -> Context -> (Type, Context)
-synthesize expr context =
-  case expr of
-    LiteralInt _ ->
-      (TInt, context)
+  in Expression::LiteralString
+    [Type::String.new, context]
 
-    LiteralString _ ->
-      (TString, context)
+  in Expression::Variable(varname)
+    vartype = context.lookup(varname)
+    return [vartype, context] if vartype
+    raise "unknown variable"
 
-    Variable varname ->
-      case Context.lookup varname context of
-        Just vartype -> (vartype, context)
-        Nothing -> error "unknown variable"
++ in Expression::Annotation(e, type)
++   if type_well_formed?(type, context)
++     delta = check(e, type, context)
++     [type, delta]
++   else
++     raise "invalid type"
++   end
 
-+   Annotation e ty ->
-+     if isTypeWellFormed ty context then
-+       let delta = check e ty context
-+        in (ty, delta)
-+     else
-+       error "Invalid type"
+  else
+    raise "unknown expression"
+  end
+end
 ```
+
+### Checkpoint 01
+
+So far our implementation allows the following expressions to be typed:
+
+```ruby
+synthesize(
+  Expression::LiteralInt.new(42),
+  Context.new
+) # => #<data Type::Int>
+
+synthesize(
+  Expression::Annotation.new(
+    Expression::LiteralString.new("hello"),
+    Type::String.new
+  ),
+  Context.new
+) # => #<data Type::String>
+
+synthesize(
+  Expression::Annotation.new(
+    Expression::LiteralString.new("hello"),
+    Type::Int.new
+  ),
+  Context.new
+) # => type mismatch (RuntimeError)
+```
+
+### Functions
+
+The typing rule for synthesizing functions is the following:
+
+![type_rule_synthesize_function](/images/11_07.png)
+
+This rule introduces a new concept we haven't talked about yet: existential
+types. The symbol ^ is used exclusively to denotate existentials. The conclusion
+of this typing rule is read as: "Under context gamma, lambda from `x` to `e`
+synthesizes the type lambda from `existential alpha` to `existential beta` and produces a
+new context delta".
+
+Alpha and beta are known as fresh existentials. Existential types can be thought of as
+unknown types. They're unknown up to this point of the type checking process, but we
+can gather more information to figure out what they are. Important: they're not like
+`any` or `void`, but placeholder for a type that is yet to be determined.
+
+The word fresh is commonly used in type theory and type checking to refer to newly
+created variables that are guaranteed to be distinct from other variables currently in scope.
+To implement this rule, we'll need a function that generates fresh names (unique names).
+For simplicity, we'll use a global counter, but feel free to wrap the type checking
+in a class if you're using an OOP language or a monad that controls state and exceptions
+if you're using FP language.
+
+```ruby
+$fresh_name_counter = 0
+def fresh_name
+  $fresh_name_counter += 1
+  "x#{$fresh_name_counter}"
+end
+
+fresh_name # => "x1"
+fresh_name # => "x2"
+fresh_name # => "x3"
+```
+
+We can break the the premise of this typing rule into three parts in order to
+understand it better.
+
+![type_rule_synthesize_function_breakdown](/images/11_08.png)
+
+The middle part, highlighted in pink, is a recursive call to `check`. It checks
+that `e`, the body of the function, checks against existential beta.
+
+The first part, highlighted in red, modifies the context gamma by pushing 3
+new elements to it: existential alpha, existential beta, and an annotation
+(typed variable) that `x has type existential alpha`. This modified context
+is the context we'll pass to `check` when checking the body of the function.
+
+The last part, highlighted in green, can be seen as a pattern match. We match on
+the output of `check` on `x has type existential alpha` binding the elements to
+left to delta and the elements to the right to theta. Remember that the context
+is a list of elements.

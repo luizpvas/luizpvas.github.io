@@ -1,5 +1,5 @@
 -- title: Heartbeat
--- publication_date: 2023-03-23
+-- publication_date:
 -- summary: UTF-8 characters are valid Ruby identifiers.
 
 [UTF-8 characters are valid Ruby identifiers](https://github.com/sidekiq/sidekiq/blob/main/lib/sidekiq/launcher.rb#L80-L82).
