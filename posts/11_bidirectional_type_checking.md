@@ -656,8 +656,7 @@ Common subtyping relations include function types (covariance and contravariance
 record types (a record with name and email is a subtype of a record with name only),
 union types (`int` is a subtype of `int or string`) and refinements (`non negative ints` is a subtype of `int`).
 You can probably think of more examples. When designing a type system for a programming
-language you'll probably have to come up with subtyping rules that make sense for the
-language.
+language it is necessary to come up with subtyping rules.
 
 The smallest step we can take into subtyping to unblock our lambda synthesis rule (remember
 we're still digging the habit role to get back to our lambda synthesis rule), is to implement
@@ -691,3 +690,39 @@ def subtype(type_a, type_b, context)
   end
 end
 ```
+
+### Back to checking
+
+As a reminder, here is the rule for checking an expression against a type:
+
+![type_rule_check](/images/11_09.png)
+
+With `Context#apply` and `subtype` we now have enough tools to improve our implementation
+of `check`:
+
+```diff
+def check(expr, type, context)
+  case [expr, type]
+
+  in [Expression::LiteralInt, Type::Int]
+    context
+
+  in [Expression::LiteralString, Type::String]
+    context
+
+  else
+-   raise "type mismatch: #{expr} #{type}"
++   synthesized_type, theta = synthesize(expr, context)
++   subtype(theta.apply(synthesized_type), theta.apply(type), theta)
+  end
+end
+```
+
+This change moves our error from "type mismatch" to "subtype mismatch". Progress.
+
+### Subtyping against existentials
+
+
+The rule for subtyping against existentials is the following:
+
+![type_rule_check](/images/11_12.png)

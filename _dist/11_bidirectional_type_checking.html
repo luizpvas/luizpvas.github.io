@@ -677,8 +677,7 @@ inheritance.</p>
 record types (a record with name and email is a subtype of a record with name only),
 union types (<code>int</code> is a subtype of <code>int or string</code>) and refinements (<code>non negative ints</code> is a subtype of <code>int</code>).
 You can probably think of more examples. When designing a type system for a programming
-language you&#39;ll probably have to come up with subtyping rules that make sense for the
-language.</p>
+language it is necessary to come up with subtyping rules.</p>
 
 <p>The smallest step we can take into subtyping to unblock our lambda synthesis rule (remember
 we&#39;re still digging the habit role to get back to our lambda synthesis rule), is to implement
@@ -711,6 +710,40 @@ are a subtype of themselves. We can implement this function as follows:</p>
   end
 end
 </code></pre>
+
+<h3>Back to checking</h3>
+
+<p>As a reminder, here is the rule for checking an expression against a type:</p>
+
+<p><img src="/images/11_09.png" alt="type_rule_check"></p>
+
+<p>With <code>Context#apply</code> and <code>subtype</code> we now have enough tools to improve our implementation
+of <code>check</code>:</p>
+
+<pre><code class="diff">def check(expr, type, context)
+  case [expr, type]
+
+  in [Expression::LiteralInt, Type::Int]
+    context
+
+  in [Expression::LiteralString, Type::String]
+    context
+
+  else
+-   raise &quot;type mismatch: #{expr} #{type}&quot;
++   synthesized_type, theta = synthesize(expr, context)
++   subtype(theta.apply(synthesized_type), theta.apply(type), theta)
+  end
+end
+</code></pre>
+
+<p>This change moves our error from &quot;type mismatch&quot; to &quot;subtype mismatch&quot;. Progress.</p>
+
+<h3>Subtyping against existentials</h3>
+
+<p>The rule for subtyping against existentials is the following:</p>
+
+<p><img src="/images/11_12.png" alt="type_rule_check"></p>
 
       </div>
     </main>

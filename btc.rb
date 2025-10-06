@@ -150,7 +150,8 @@ def check(expr, type, context)
     context
 
   else
-    raise "type mismatch: #{expr} #{type}"
+    synthesized_type, theta = synthesize(expr, context)
+    subtype(theta.apply(synthesized_type), theta.apply(type), theta)
   end
 end
 
