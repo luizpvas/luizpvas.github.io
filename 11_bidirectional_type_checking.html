@@ -342,7 +342,7 @@ difference is that arrows are flipped. The implementation of check is as follows
     context
 
   else
-    raise &quot;type mismatch&quot;
+    raise &quot;type mismatch: #{expr} #{type}&quot;
   end
 end
 </code></pre>
@@ -412,9 +412,9 @@ synthesize(
 ) # =&gt; type mismatch (RuntimeError)
 </code></pre>
 
-<h3>Functions</h3>
+<h3>Lambdas</h3>
 
-<p>The typing rule for synthesizing functions is the following:</p>
+<p>The typing rule for synthesizing lambdas (anonymous functions) is the following:</p>
 
 <p><img src="/images/11_07.png" alt="type_rule_synthesize_function"></p>
 
@@ -424,14 +424,15 @@ of this typing rule is read as: &quot;Under context gamma, lambda from <code>x</
 synthesizes the type lambda from <code>existential alpha</code> to <code>existential beta</code> and produces a
 new context delta&quot;.</p>
 
-<p>Alpha and beta are known as fresh existentials. Existential types can be thought of as
+<p>Existential types can be thought of as
 unknown types. They&#39;re unknown up to this point of the type checking process, but we
 can gather more information to figure out what they are. Important: they&#39;re not like
 <code>any</code> or <code>void</code>, but placeholder for a type that is yet to be determined.</p>
 
-<p>The word fresh is commonly used in type theory and type checking to refer to newly
-created variables that are guaranteed to be distinct from other variables currently in scope.
-To implement this rule, we&#39;ll need a function that generates fresh names (unique names).
+<p>Alpha and beta are fresh existentials. The word fresh is commonly used in
+type theory and type checking to refer to newly created variables that are guaranteed
+to be distinct from other variables currently in scope.
+To implement this rule, we&#39;ll need a function that generates unique names.
 For simplicity, we&#39;ll use a global counter, but feel free to wrap the type checking
 in a class if you&#39;re using an OOP language or a monad that controls state and exceptions
 if you&#39;re using FP language.</p>
@@ -447,7 +448,7 @@ fresh_name # =&gt; &quot;x2&quot;
 fresh_name # =&gt; &quot;x3&quot;
 </code></pre>
 
-<p>We can break the the premise of this typing rule into three parts in order to
+<p>We can break the the premise of the lambda typing rule into three parts in order to
 understand it better.</p>
 
 <p><img src="/images/11_08.png" alt="type_rule_synthesize_function_breakdown"></p>
@@ -462,8 +463,254 @@ is the context we&#39;ll pass to <code>check</code> when checking the body of th
 
 <p>The last part, highlighted in green, can be seen as a pattern match. We match on
 the output of <code>check</code> on <code>x has type existential alpha</code> binding the elements to
-left to delta and the elements to the right to theta. Remember that the context
-is a list of elements.</p>
+left to delta and the elements to the right to theta. In other words, take the
+output of <code>check</code> and split it at the element <code>x : existential alpha</code>. Elements to
+the left of this split are bound to delta and elements to the right are bound to theta.</p>
+
+<h3>Context manipulation</h3>
+
+<p>In order to synthesize lambdas we need to manipulate the context with
+two operations: push, to add new elements to the context, and split to split a context
+into two at a given <code>element</code>.</p>
+
+<pre><code class="diff">class Context
+  module Element
+    TypedVariable = Data.define(:name, :type)
+  end
+
++ def self.empty = new([])
+
+- def initialize
++ def initialize(elements = [])
+-   @elements = []
++   @elements = elements
+  end
+
+  def lookup(name)
+    typedvar =
+      @elements.find do |element|
+        case element
+        in Element::TypedVariable(varname, _) then varname == name
+        else false
+        end
+      end
+
+    typedvar&amp;.then { it.type }
+  end
+
++ def push(elements)
++   Context.new(@elements + Array(elements))
++ end
+
++ def split(element)
++   left, right = @elements.partition { it == element }
++   [Context.new(left), Context.new(right)]
++ end
+end
+</code></pre>
+
+<h3>Synthesizing lambdas</h3>
+
+<p>We need a few extra expressions, types and context elements to synthesize lambdas.</p>
+
+<pre><code class="diff">module Expression
+  LiteralInt = Data.define(:value)
+  LiteralString = Data.define(:value)
+  Variable = Data.define(:name)
+  Annotation = Data.define(:expression, :type)
++ Lambda = Data.define(:arg_name, :body_expr)
+end
+
+module Type
+  Int = Data.define
+  String = Data.define
++ Variable = Data.define(:name)
++ Existential = Data.define(:name)
++ Lambda = Data.define(:arg_type, :body_type)
+end
+
+class Context
+  module Element
+    TypedVariable = Data.define(:name, :type)
++   UnsolvedExistential = Data.define(:name)
++   SolvedExistential = Data.define(:name, :type)
+  end
+end
+</code></pre>
+
+<p>We now have enough to translate the type premises into code with the following
+implementation.</p>
+
+<pre><code class="ruby">def synthesize(expr, context)
+  case expr
+  # ... other expressions
+
+  in Expression::Lambda(arg_name, body_expr)
+    alpha_name = fresh_name
+    beta_name = fresh_name
+
+    alpha_type = Type::Existential.new(alpha_name)
+    beta_type = Type::Existential.new(beta_name)
+    lambda_type = Type::Lambda.new(alpha_type, beta_type)
+
+    arg_has_type_alpha = Context::Element::TypedVariable.new(arg_name, alpha_type)
+
+    gamma = context.push([
+      Context::Element::UnsolvedExistential.new(alpha_name),
+      Context::Element::UnsolvedExistential.new(alpha_name),
+      arg_has_type_alpha
+    ])
+
+    output_context = check(body_expr, beta_type, gamma)
+    delta, _theta = output_context.split(arg_has_type_alpha)
+    [lambda_type, delta]
+  end
+end
+</code></pre>
+
+<p>If we try to synthesize a lambda right now, we&#39;ll get a type mismatch error because
+the <code>check</code> function does not handle existentials yet.</p>
+
+<p>The good news is that, even though it does not work yet, the implementation of
+synthesize is complete. The bad news is that, due to the recursive nature of the
+algorithm, we have a deep habit role to get into in order to solve existentials.</p>
+
+<h3>Solving existentials</h3>
+
+<p>Just to be clear where we&#39;re at, when we try to synthesizing a lambda that ignores
+the argument and returns a constant, we get following error:</p>
+
+<pre><code class="ruby">puts synthesize(
+  Expression::Lambda.new(&quot;x&quot;, Expression::LiteralInt.new(1)),
+  Context.empty
+) # =&gt;  # type mismatch: #&lt;data Expression::LiteralInt value=1&gt; #&lt;data Type::Existential name=&quot;x2&quot;&gt;
+</code></pre>
+
+<p>This happens when synthesize calls <code>check</code> with the lambda body expression and the beta existential.
+To fix this problem we need to learn how to check expressions against existentials. The following
+typing rule helps with that:</p>
+
+<p><img src="/images/11_09.png" alt="type_rule_check"></p>
+
+<p>You may read this typing rule as: &quot;Under context gamma, expression <code>e</code> type checks
+against <code>B</code> and produces context delta if, and only if, under context gamma, expression
+<code>e</code> synthesizes type <code>A</code> with context output theta and theta applied to <code>A</code> is a subtype of
+theta applied to <code>B</code> with context output delta.&quot;. Sub stands for substitution.</p>
+
+<p>The <code>B</code> type in this rule can be an existential, which we&#39;re interested.</p>
+
+<p>But before we can implement this rule, there are two problems we need to solve:</p>
+
+<ul>
+<li>What does it mean to apply a context to a type?</li>
+<li>What does it mean for a type to be a subtype of another type?</li>
+</ul>
+
+<h3>First problem: applying a context to a type</h3>
+
+<p>As explained in the paper, &quot;an algorithmic context can be viewed as a substitution for
+its solved existential variables&quot;. Here are the rules:</p>
+
+<p><img src="/images/11_10.png" alt="type_rule_check"></p>
+
+<p>From top to bottom, you can read each rule as:</p>
+
+<ul>
+<li>Type variable resolve to itself.</li>
+<li>Unit/literal resolve to itself.</li>
+<li>Existential <code>â</code> solved to type <code>t</code> resolve to context applied to <code>t</code>. Notice the recursion.</li>
+<li>Existential <code>â</code>, unsolved, resolve to itself.</li>
+<li>Lambda <code>A -&gt; B</code> resolve to <code>context applied to A -&gt; context applied to B</code>.</li>
+<li>Quantification <code>∀a. A</code> resolve to <code>∀a. context applied to A</code>.</li>
+</ul>
+
+<p>We can implement <code>Contex#apply</code> for the types we already have as following:</p>
+
+<pre><code class="Ruby">class Context
+  # ... other methods
+
+  def apply(type)
+    case type
+    in Type::Int
+      type
+
+    in Type::String
+      type
+
+    in Type::Existential(name)
+      solved_type = find_solved_existential(name)
+      solved_type ? apply(solved_type) : type
+
+    in Type::Lambda(arg_type, body_expr)
+      Type::Lambda(apply(arg_type), apply(body_expr))
+
+    else
+      raise &quot;unknown type: #{type}&quot;
+    end
+  end
+
+  def find_solved_existential(name)
+    solved_existential =
+      @elements.find do |element|
+        case element
+        in Element::SolvedExistential(existential_name, existential_type)
+          existential_name == name
+        else
+          false
+        end
+      end
+
+    solved_existential&amp;.then { it.type }
+  end
+end
+</code></pre>
+
+<h3>Second problem: subtyping</h3>
+
+<p>If you have a background in OOP languages, it might be natural to associate
+subtyping with inheritance. This is not the case here. Subtyping is a compatibility
+relation between two types. When we say <code>A is a subtype of B</code> it means that <code>A</code>
+can be safely used when <code>B</code> is expected. Think of general substitution instead of
+inheritance.</p>
+
+<p>Common subtyping relations include function types (covariance and contravariance),
+record types (a record with name and email is a subtype of a record with name only),
+union types (<code>int</code> is a subtype of <code>int or string</code>) and refinements (<code>non negative ints</code> is a subtype of <code>int</code>).
+You can probably think of more examples. When designing a type system for a programming
+language you&#39;ll probably have to come up with subtyping rules that make sense for the
+language.</p>
+
+<p>The smallest step we can take into subtyping to unblock our lambda synthesis rule (remember
+we&#39;re still digging the habit role to get back to our lambda synthesis rule), is to implement
+the following rules:</p>
+
+<p><img src="/images/11_11.png" alt="type_rule_check"></p>
+
+<p>These three rules say the same thing: a type is a subtype of itself. Type variables
+are a subtype of themselves, literals are a subtype of themselves, and existentials
+are a subtype of themselves. We can implement this function as follows:</p>
+
+<pre><code class="ruby">def subtype(type_a, type_b, context)
+  case [type_a, type_b]
+  in [Type::Int, Type::Int]
+    context
+
+  in [Type::String, Type::String]
+    context
+
+  in [Type::Variable(name_a), Type::Variable(name_b)]
+    raise &quot;subtype mismatch: #{name_a} #{name_b}&quot; if name_a != name_b
+    context
+
+  in [Type::Existential(name_a), Type::Existential(name_b)]
+    raise &quot;subtype mismatch: #{name_a} #{name_b}&quot; if name_a != name_b
+    context
+
+  else
+    raise &quot;subtype mismatch: #{type_a} #{type_b}&quot;
+  end
+end
+</code></pre>
 
       </div>
     </main>
