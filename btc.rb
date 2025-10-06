@@ -10,14 +10,6 @@ module Type
   String = Data.define
 end
 
-def type_well_formed?(type, context)
-  case type
-  in Type::Int then true # UnitWF rule
-  in Type::String then true # UnitWF rule
-  else raise "unknown type: #{type}"
-  end
-end
-
 class Context
   module Element
     TypedVariable = Data.define(:name, :type)
@@ -28,14 +20,23 @@ class Context
   end
 
   def lookup(name)
-    typedvar = @elements.find do |element|
-      case element
-      in Element::TypedVariable(varname, _) then varname == name
-      else false
+    typedvar =
+      @elements.find do |element|
+        case element
+        in Element::TypedVariable(varname, _) then varname == name
+        else false
+        end
       end
-    end
 
     typedvar&.then { it.type }
+  end
+end
+
+def type_well_formed?(type, context)
+  case type
+  in Type::Int then true # UnitWF rule
+  in Type::String then true # UnitWF rule
+  else raise "unknown type: #{type}"
   end
 end
 
@@ -59,12 +60,9 @@ def synthesize(expr, context)
     raise "unknown variable"
 
   in Expression::Annotation(e, type)
-    if type_well_formed?(type, context)
-      delta = check(e, type, context)
-      [type, delta]
-    else
-      raise "invalid type"
-    end
+    raise "invalid type" if !type_well_formed?(type, context)
+    delta = check(e, type, context)
+    [type, delta]
 
   else
     raise "unknown expression"
@@ -97,11 +95,3 @@ puts synthesize(
   ),
   Context.new
 ) # => #<data Type::String>
-
-puts synthesize(
-  Expression::Annotation.new(
-    Expression::LiteralString.new("hello"),
-    Type::Int.new
-  ),
-  Context.new
-) # => type mismatch (RuntimeError)
