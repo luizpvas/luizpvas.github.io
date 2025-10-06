@@ -191,8 +191,8 @@ handling context input and output is the following:</p>
 
   in Expression::Variable(varname)
     vartype = context.lookup(varname)
-    return [vartype, context] if vartype
-    raise &quot;unknown variable&quot;
+    raise &quot;unknown variable&quot; if !vartype
+    [vartype, context]
 
   else
     raise &quot;unknown expression&quot;
@@ -233,12 +233,13 @@ of the facts we have gathered from the program we are type checking.</p>
   end
 
   def lookup(name)
-    typedvar = @elements.find do |element|
-      case element
-      in Element::TypedVariable(varname, _) then varname == name
-      else false
+    typedvar =
+      @elements.find do |element|
+        case element
+        in Element::TypedVariable(varname, _) then varname == name
+        else false
+        end
       end
-    end
 
     typedvar&amp;.then { it.type }
   end
@@ -371,16 +372,13 @@ def synthesize(expr, context)
 
   in Expression::Variable(varname)
     vartype = context.lookup(varname)
-    return [vartype, context] if vartype
-    raise &quot;unknown variable&quot;
+    raise &quot;unknown variable&quot; if !vartype
+    [vartype, context]
 
 + in Expression::Annotation(e, type)
-+   if type_well_formed?(type, context)
-+     delta = check(e, type, context)
-+     [type, delta]
-+   else
-+     raise &quot;invalid type&quot;
-+   end
++   raise &quot;invalid type&quot; if !type_well_formed?(type, context)
++   delta = check(e, type, context)
++   [type, delta]
 
   else
     raise &quot;unknown expression&quot;
