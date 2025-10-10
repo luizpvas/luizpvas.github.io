@@ -16,6 +16,7 @@ end
 
 class Context
   module Element
+    Variable = Data.define(:name)
     TypedVariable = Data.define(:name, :type)
     UnsolvedExistential = Data.define(:name)
     SolvedExistential = Data.define(:name, :type)
@@ -79,6 +80,10 @@ class Context
     solved_existential&.then { it.type }
   end
 
+  def has?(element)
+    @elements.include?(element)
+  end
+
   def push(elements)
     Context.new(@elements + Array(elements))
   end
@@ -91,9 +96,24 @@ end
 
 def type_well_formed?(type, context)
   case type
-  in Type::Int then true # UnitWF rule
-  in Type::String then true # UnitWF rule
-  else raise "unknown type: #{type}"
+  in Type::Int
+    true
+
+  in Type::String
+    true
+
+  in Type::Variable(name)
+    context.has?(Context::Element::Variable.new(name))
+
+  in Type::Existential(name)
+    context.has?(Context::Element::UnsolvedExistential.new(name)) ||
+      context.find_solved_existential(name).present?
+
+  in Type::Lambda(arg_type, body_type)
+    type_well_formed?(arg_type, context) && type_well_formed?(body_type, context)
+
+  else
+    raise "unknown type: #{type}"
   end
 end
 
@@ -234,6 +254,6 @@ puts synthesize(
 ) # => #<data Type::String>
 
 puts synthesize(
-  Expression::Lambda.new("x", Expression::LiteralInt.new(1)),
+  Expression::Lambda.new("x", Expression::Variable.new(1)),
   Context.empty
 ) # => #<data Type::Lambda argtype=#<data Type::Existential name="x1">, bodytype=#<data Type::Existential name="x2">>

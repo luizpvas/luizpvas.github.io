@@ -1,4 +1,4 @@
--- title: Bidirectional type checking
+-- title: Bidirectional type checking step by step
 -- publication_date: 2025-08-13
 -- summary:
 
@@ -511,6 +511,7 @@ end
 
 class Context
   module Element
++   Variable = Data.define(:name)
     TypedVariable = Data.define(:name, :type)
 +   UnsolvedExistential = Data.define(:name)
 +   SolvedExistential = Data.define(:name, :type)
@@ -808,6 +809,40 @@ class Context
 end
 ```
 
+We also need to update our `type_well_formed?` function to support type variables,
+existentials and lambdas:
+
+```ruby
+class Context
+  # ... other methods
+
+  def has?(element)
+    @elements.include?(element)
+  end
+end
+
+def type_well_formed?(type, context)
+  case type
+  # we only had these two cases before for literal values
+  in Type::Int then true
+  in Type::String then true
+
+  in Type::Variable(name)
+    context.has?(Context::Element::Variable.new(name))
+
+  in Type::Existential(name)
+    context.has?(Context::Element::UnsolvedExistential.new(name)) ||
+      context.find_solved_existential(name).present?
+
+  in Type::Lambda(arg_type, body_type)
+    type_well_formed?(arg_type, context) && type_well_formed?(body_type, context)
+
+  else
+    raise "unknown type: #{type}"
+  end
+end
+```
+
 With these functions in place, we have enough in place to delegate to subtying
 existentials to right instantiation:
 
@@ -839,7 +874,7 @@ def subtype(type_a, type_b, context)
 end
 ```
 
-No more errors now when synthesizing lambdas.
+Finally no more errors now when synthesizing this one lambda:
 
 ```ruby
 puts synthesize(
@@ -857,3 +892,20 @@ Out of the 28 typing rules in the algorithm, we have implemented 11 of them. For
 people, here's the typing rules we've implemented, highlighted in red:
 
 ![type_rule_check](/images/11_15.png)
+
+Let's continue our journey by synthesizing the famous identity function `λa.a`.
+
+### Existentials subtyping existentials
+
+If we try to synthesize the identity function we get the following error: "subtype mismatch: x1 x2 (RuntimeError)".
+This is because our right instantiation function is very limited. The typing rule
+we need to support now is the following:
+
+![type_rule_check](/images/11_16.png)
+
+This rule states that "under context gamma existential beta is a subtype of existential alpha if,
+and only if, existential alpha exists in gamma and it is defined in a position before existential beta,
+with output gamma having existential beta solved to existential alpha".
+
+In other words, existential A is a subtype of existential B if A is defined before
+B. To implement this rule, replace unsolved existential B with solved existential B=A.
