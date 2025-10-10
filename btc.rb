@@ -221,6 +221,18 @@ def subtype(type_a, type_b, context)
     return context if name_a == name_b
     instantiate_right(type_a, name_b, context)
 
+  # Figure 9. <:∀R
+  #
+  # Γ, a ⊢ A <: B ⊣ Δ, a, Θ
+  # ------------------------
+  # Γ ⊢ A <: ∀a.B ⊣ Δ
+  in [_, Type::Quantification(name, subtype)]
+    alpha_var = Context::Element::Variable.new(name)
+    gamma = context.push(alpha_var)
+    result = subtype(type_a, subtype, gamma)
+    delta, _theta = result.split(alpha_var)
+    delta
+
   in [_, Type::Existential(existential_name)]
     raise "circular instantiation: #{type_a} #{type_b}" if occurs?(existential_name, type_a)
     instantiate_right(type_a, existential_name, context)

@@ -878,7 +878,8 @@ existentials to right instantiation:</p>
     context
 
   in [Type::Existential(name_a), Type::Existential(name_b)]
--   return context if name_a == name_b
+-   raise &quot;subtype mismatch: #{name_a} #{name_b}&quot; if name_a != name_b
++   return context if name_a == name_b
 +   instantiate_right(type_a, name_b, context)
 
 + in [_, Type::Existential(existential_name)]
@@ -902,16 +903,19 @@ end
 <p>Although the inferred type looks weird with existentials, it&#39;s correct. We&#39;re
 finally out of the rabbit hole, and, good news, we have covered the whole algorithm
 end to end. There are still gaps in our implementation, but there are no more
-side tracks or new concepts or new abstractions to learn.</p>
+side tracks or new concepts or new abstractions to learn. From now one we&#39;ll just
+be modifying our existing functions instead of adding new ones.</p>
 
 <p>Out of the 28 typing rules in the algorithm, we have implemented 11 of them. For visual
 people, here&#39;s the typing rules we&#39;ve implemented, highlighted in red:</p>
 
 <p><img src="/images/11_15.png" alt="type_rule_check"></p>
 
-<p>Let&#39;s continue our journey by synthesizing the famous identity function <code>λa.a</code>.</p>
+<p>If you want to take a break, it&#39;s good time now.</p>
 
 <h3>Existentials subtyping existentials</h3>
+
+<p>Let&#39;s continue our journey by synthesizing the famous identity function <code>λa.a</code>.</p>
 
 <p>If we try to synthesize the identity function we get the following error: &quot;subtype mismatch: x1 x2 (RuntimeError)&quot;.
 This is because our right instantiation function is very limited. The typing rule
@@ -925,6 +929,10 @@ with output gamma having existential beta solved to existential alpha&quot;.</p>
 
 <p>For practical purposes, we can implement right instantiation to whatever existential
 appears before the other.</p>
+
+<p>We need to add a helper method on context <code>Context#index</code> that returns the position
+of an element. Then we can modify <code>instantiate_right</code> to consider subtyping
+existentials</p>
 
 <pre><code class="diff">class Context
   # ... other methods
@@ -1031,6 +1039,40 @@ a lambda type with a quantification.</p>
 quantification type by adding the quantification varible to the context, and then
 call <code>subtype</code> again with this modified context. When returning, we drop the
 variable. This is what the <code>Delta, alpha, Theta</code> means.</p>
+
+<pre><code class="ruby">def subtype(type_a, type_b, context)
+  case [type_a, type_b]
+  # ...
+  in [_, Type::Quantification(name, subtype)]
+    alpha_var = Context::Element::Variable.new(name)
+    gamma = context.push(alpha_var)
+    result = subtype(type_a, subtype, gamma)
+    delta, _theta = result.split(alpha_var)
+    delta
+  end
+end
+</code></pre>
+
+<p>With this rule in place we&#39;ve changed the error from a subtype mistmatch between
+a lambda and a quantification to a subtype mismatch between two lambdas. The
+first lambda type is the result from calling synthesize. The second lambda type
+is the result from expanding the quantification present in the annotation.</p>
+
+<pre><code>subtype mismatch:
+#&lt;data Type::Lambda arg_type=#&lt;data Type::Existential name=&quot;x1&quot;&gt;, body_type=#&lt;data Type::Existential name=&quot;x2&quot;&gt;&gt;
+#&lt;data Type::Lambda arg_type=#&lt;data Type::Variable name=&quot;a&quot;&gt;, body_type=#&lt;data Type::Variable name=&quot;a&quot;&gt;&gt;
+</code></pre>
+
+<h3>Subtyping lambdas</h3>
+
+<p>The typing rule we need to make progress now is the following:</p>
+
+<p><img src="/images/11_18.png" alt="type_rule_check"></p>
+
+<p>The conclusion is mostly straight forward, but the premise describes an interesting
+relation for covariance and contravariance. Notice that the subtyping order is
+different for the argument type and the body type (aka return type). <code>B1</code> must be
+a subtype of <code>A1</code> (argument), while <code>A2</code> must be a subtype of <code>B2</code> (return).</p>
 
       </div>
     </main>
