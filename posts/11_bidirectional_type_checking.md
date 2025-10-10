@@ -981,7 +981,7 @@ We cannot annotate it yet because we're still missing quantification types.
 
 ### Quantification types
 
-The signature of the id function is `forall. a -> a`. For all is known as
+The signature of the id function is `forall a. a -> a`. For all is known as
 universal quantification in the paper. To support quantifications, we need
 to add the type definition and update our implementation of `type_well_formed?`,
 `occurs?` and `Context#apply`.
