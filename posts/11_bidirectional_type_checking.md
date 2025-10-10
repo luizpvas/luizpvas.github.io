@@ -781,13 +781,25 @@ The smallest step we can take into implementing right instantiation is the follo
 
 We can read this as: "under context gamma containing alpha, alpha is instantiated to type `t`
 if `t` is well formed and produces context gamma replacing unsolved alpha with alpha solved
-to `t`."
+to `t`." The notation used for t (lower case tau) suggests that is must be a monotype, so we
+also need to add this check.
 
-We can start the implementation of right instantiation with the following code:
+The implementation of `monotype?` is redundant because we haven't seen quantifications yet,
+but let's define it anyway so we have a place to extend it later.
 
 ```ruby
+def monotype?(type)
+  case type
+  in Type::Lambda(arg_type, body_type)
+    monotype?(arg_type) && monotype?(body_type)
+
+  else
+    true
+  end
+end
+
 def instantiate_right(type, existential_name, context)
-  if type_well_formed?(type, context)
+  if monotype?(type) && type_well_formed?(type, context)
     return context.replace(
       Context::Element::UnsolvedExistential.new(existential_name),
       Context::Element::SolvedExistential.new(existential_name, type)
@@ -988,6 +1000,14 @@ def type_well_formed?(type, context)
   # ...
   in Type::Quantification(name, subtype)
     type_well_formed?(subtype, context.push(Context::Element::Variable.new(name)))
+  end
+end
+
+def monotype?(type)
+  case type
+  # ...
+  in Type::Quantification
+    false
   end
 end
 

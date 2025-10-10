@@ -105,6 +105,19 @@ class Context
   end
 end
 
+def monotype?(type)
+  case type
+  in Type::Quantification
+    false
+
+  in Type::Lambda(arg_type, body_type)
+    monotype?(arg_type) && monotype?(body_type)
+
+  else
+    true
+  end
+end
+
 def type_well_formed?(type, context)
   case type
   in Type::Int
@@ -256,7 +269,7 @@ def instantiate_left(type, existential_name, context)
 end
 
 def instantiate_right(type, existential_name, context)
-  if type_well_formed?(type, context)
+  if monotype?(type) && type_well_formed?(type, context)
     return context.replace(
       Context::Element::UnsolvedExistential.new(existential_name),
       Context::Element::SolvedExistential.new(existential_name, type)
