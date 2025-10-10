@@ -126,9 +126,9 @@ def type_well_formed?(type, context)
 
   # ForallWF
   #
-  # Γ, α ⊢ A
+  # Γ, a ⊢ A
   # ---------
-  # Γ ⊢ ∀α.A
+  # Γ ⊢ ∀a.A
   in Type::Quantification(name, type)
     puts "got here?"
     puts name
@@ -220,6 +220,16 @@ def subtype(type_a, type_b, context)
   in [Type::Existential(name_a), Type::Existential(name_b)]
     return context if name_a == name_b
     instantiate_right(type_a, name_b, context)
+
+  # Figure 9. <:->
+  #
+  # Γ ⊢ B1 <: A1 ⊣ Θ   Θ ⊢ [Θ]A2 <: [Θ]B2 ⊣ Δ
+  # -----------------------------------------
+  # Γ ⊢ A1 -> A2 <: B1 -> B2 ⊣ Δ
+  in [Type::Lambda(a1, a2), Type::Lambda(b1, b2)]
+    theta = subtype(b1, a1, context)
+    delta = subtype(theta.apply(a2), theta.apply(b2), theta)
+    delta
 
   # Figure 9. <:∀R
   #

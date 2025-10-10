@@ -297,7 +297,7 @@ the program is not lying to the compiler. It checks that the expression `e`
 type checks against `A`.
 
 In order to implement `check` we need at least one typing rule, so let's stash
-the annotation synthesize rule and look at the simplest rule for checking
+in our head the annotation synthesize rule and look at the simplest rule for checking
 literals:
 
 ![type_rule_check_literal](/images/11_06.png)
@@ -890,8 +890,9 @@ puts synthesize(
 Although the inferred type looks weird with existentials, it's correct. We're
 finally out of the rabbit hole, and, good news, we have covered the whole algorithm
 end to end. There are still gaps in our implementation, but there are no more
-side tracks or new concepts or new abstractions to learn. From now one we'll just
-be modifying our existing functions instead of adding new ones.
+side tracks or new concepts or new abstractions to learn. Apart from one extra function
+we have not yet implemented (left instantiation), we'll mostly be modifying our
+existing functions instead of adding new ones.
 
 Out of the 28 typing rules in the algorithm, we have implemented 11 of them. For visual
 people, here's the typing rules we've implemented, highlighted in red:
@@ -1066,3 +1067,31 @@ The conclusion is mostly straight forward, but the premise describes an interest
 relation for covariance and contravariance. Notice that the subtyping order is
 different for the argument type and the body type (aka return type). `B1` must be
 a subtype of `A1` (argument), while `A2` must be a subtype of `B2` (return).
+
+We have all the pieces in place to implement this rule, so let's go ahead and modify
+the `subtype` function to handle this case.
+
+```ruby
+def subtype(type_a, type_b, context)
+  case [type_a, type_b]
+  # ...
+  in [Type::Lambda(a1, a2), Type::Lambda(b1, b2)]
+    theta = subtype(b1, a1, context)
+    delta = subtype(theta.apply(a2), theta.apply(b2), theta)
+    delta
+  end
+end
+```
+
+The error changed again. We're now one level deep into the previous error. Progress.
+
+```
+subtype mismatch: #<data Type::Existential name="x2"> #<data Type::Variable name="a">
+```
+
+The existential `x2` is the synthesized type for the body of our lambda. The type variable
+`a` is the annotation we provided. You might have notice that the existential appears
+on the left side of the relation instead of the right side. This means we need to
+look into left instantiation to continue making progress.
+
+### Left instantiation
