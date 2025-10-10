@@ -617,12 +617,15 @@ class Context
     in Type::String
       type
 
+    in Type::Variable
+      type
+
     in Type::Existential(name)
       solved_type = find_solved_existential(name)
       solved_type ? apply(solved_type) : type
 
-    in Type::Lambda(arg_type, body_expr)
-      Type::Lambda(apply(arg_type), apply(body_expr))
+    in Type::Lambda(arg_type, body_type)
+      type.with(arg_type: apply(arg_type), body_type: apply(body_type))
 
     else
       raise "unknown type: #{type}"
@@ -880,7 +883,7 @@ Finally no more errors now when synthesizing this one lambda:
 puts synthesize(
   Expression::Lambda.new("x", Expression::LiteralInt.new(1)),
   Context.empty
-) # => #<data Type::Lambda argtype=#<data Type::Existential name="x1">, bodytype=#<data Type::Existential name="x2">>
+) # => #<data Type::Lambda arg_type=#<data Type::Existential name="x1">, bodytype=#<data Type::Existential name="x2">>
 ```
 
 Although the inferred type looks weird with existentials, it's correct. We're
@@ -947,10 +950,75 @@ def instantiate_right(type, existential_name, context)
 end
 ```
 
-We can now synthesize the id function correctly, though we cannot annotate it yet
-because we're still missing quantification types.
+We can now synthesize the id function correctly.
 
+```ruby
 puts synthesize(
   Expression::Lambda.new("x", Expression::Variable.new("x")),
   Context.empty
-) # => #<data Type::Lambda argtype=#<data Type::Existential name="x1">, bodytype=#<data Type::Existential name="x2">>
+) # => #<data Type::Lambda arg_type=#<data Type::Existential name="x1">, bodytype=#<data Type::Existential name="x2">>
+```
+
+We cannot annotate it yet because we're still missing quantification types.
+
+### Quantification types
+
+The signature of the id function is `forall. a -> a`. For all is known as
+universal quantification in the paper. To support quantifications, we need
+to add the type definition and update our implementation of `type_well_formed?`,
+`occurs?` and `Context#apply`.
+
+```ruby
+module Type
+  # ...
+  Quantification = Data.define(:name, :subtype)
+end
+
+def type_well_formed?(type, context)
+  case type
+  # ...
+  in Type::Quantification(name, subtype)
+    type_well_formed?(subtype, context.push(Context::Element::Variable.new(name)))
+  end
+end
+
+def occurs?(name, type)
+  case type
+  # ...
+  in Type::Quantification(alpha, subtype)
+    name == alpha || occurs?(name, subtype)
+  end
+end
+
+class Context
+  def apply(type)
+    case type
+    # ...
+    in Type::Quantification(name, subtype)
+      type.with(subtype: apply(subtype))
+    end
+  end
+end
+```
+
+This gets us closer to annotating the id function, but now we're stuck on subtyping
+a lambda type with a quantification.
+
+```ruby
+puts synthesize(
+  Expression::Annotation.new(
+    Expression::Lambda.new("x", Expression::Variable.new("x")),
+    Type::Quantification.new("a", Type::Lambda.new(Type::Variable.new("a"), Type::Variable.new("a")))
+  ),
+  Context.empty
+) # subtype mismatch: #<data Type::Lambda arg_type=#<data Type::Existential name="x1">, body_type=#<data Type::Existential name="x2">> #<data Type::Quantification name="a", subtype=#<data Type::Lambda arg_type=#<data Type::Variable name="a">, body_type=#<data Type::Variable name="a">>> (RuntimeError)
+```
+
+The typing rule we need to make progress is the following:
+
+![type_rule_check](/images/11_17.png)
+
+This rule acts like an expansion step to other typing rules. We expand the
+quantification type by adding the quantification varible to the context, and then
+call `subtype` again with this modified context. When returning, we drop the
+variable. This is what the `Delta, alpha, Theta` means.

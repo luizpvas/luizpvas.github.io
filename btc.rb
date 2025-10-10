@@ -11,7 +11,8 @@ module Type
   String = Data.define
   Variable = Data.define(:name)
   Existential = Data.define(:name)
-  Lambda = Data.define(:argtype, :bodytype)
+  Lambda = Data.define(:arg_type, :body_type)
+  Quantification = Data.define(:name, :subtype)
 end
 
 class Context
@@ -54,12 +55,18 @@ class Context
     in Type::String
       type
 
+    in Type::Variable
+      type
+
     in Type::Existential(name)
       solved_type = find_solved_existential(name)
       solved_type ? apply(solved_type) : type
 
-    in Type::Lambda(arg_type, body_expr)
-      Type::Lambda(apply(arg_type), apply(body_expr))
+    in Type::Lambda(arg_type, body_type)
+      type.with(arg_type: apply(arg_type), body_type: apply(body_type))
+
+    in Type::Quantification(name, subtype)
+      type.with(subtype: apply(subtype))
 
     else
       raise "unknown type: #{type}"
@@ -114,7 +121,19 @@ def type_well_formed?(type, context)
       context.find_solved_existential(name).present?
 
   in Type::Lambda(arg_type, body_type)
+    puts "how about here?"
     type_well_formed?(arg_type, context) && type_well_formed?(body_type, context)
+
+  # ForallWF
+  #
+  # Γ, α ⊢ A
+  # ---------
+  # Γ ⊢ ∀α.A
+  in Type::Quantification(name, type)
+    puts "got here?"
+    puts name
+    puts type
+    type_well_formed?(type, context.push(Context::Element::Variable.new(name)))
 
   else
     raise "unknown type: #{type}"
@@ -254,6 +273,9 @@ def occurs?(name, type)
   in Type::Lambda(arg_type, return_type)
     occurs?(name, arg_type) || occurs?(name, return_type)
 
+  in Type::Quantification(alpha, subtype)
+    name == alpha || occurs?(name, subtype)
+
   else
     raise "unknown type: #{type}"
   end
@@ -273,6 +295,9 @@ puts synthesize(
 ) # => #<data Type::String>
 
 puts synthesize(
-  Expression::Lambda.new("x", Expression::Variable.new("x")),
+  Expression::Annotation.new(
+    Expression::Lambda.new("x", Expression::Variable.new("x")),
+    Type::Quantification.new("a", Type::Lambda.new(Type::Variable.new("a"), Type::Variable.new("a")))
+  ),
   Context.empty
-) # => #<data Type::Lambda argtype=#<data Type::Existential name="x1">, bodytype=#<data Type::Existential name="x2">>
+) # subtype mismatch: #<data Type::Lambda arg_type=#<data Type::Existential name="x1">, body_type=#<data Type::Existential name="x2">> #<data Type::Quantification name="a", subtype=#<data Type::Lambda arg_type=#<data Type::Variable name="a">, body_type=#<data Type::Variable name="a">>> (RuntimeError)

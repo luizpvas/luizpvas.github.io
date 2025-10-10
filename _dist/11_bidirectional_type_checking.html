@@ -638,12 +638,15 @@ its solved existential variables&quot;. Here are the rules:</p>
     in Type::String
       type
 
+    in Type::Variable
+      type
+
     in Type::Existential(name)
       solved_type = find_solved_existential(name)
       solved_type ? apply(solved_type) : type
 
-    in Type::Lambda(arg_type, body_expr)
-      Type::Lambda(apply(arg_type), apply(body_expr))
+    in Type::Lambda(arg_type, body_type)
+      type.with(arg_type: apply(arg_type), body_type: apply(body_type))
 
     else
       raise &quot;unknown type: #{type}&quot;
@@ -893,7 +896,7 @@ end
 <pre><code class="ruby">puts synthesize(
   Expression::Lambda.new(&quot;x&quot;, Expression::LiteralInt.new(1)),
   Context.empty
-) # =&gt; #&lt;data Type::Lambda argtype=#&lt;data Type::Existential name=&quot;x1&quot;&gt;, bodytype=#&lt;data Type::Existential name=&quot;x2&quot;&gt;&gt;
+) # =&gt; #&lt;data Type::Lambda arg_type=#&lt;data Type::Existential name=&quot;x1&quot;&gt;, bodytype=#&lt;data Type::Existential name=&quot;x2&quot;&gt;&gt;
 </code></pre>
 
 <p>Although the inferred type looks weird with existentials, it&#39;s correct. We&#39;re
@@ -959,13 +962,75 @@ def instantiate_right(type, existential_name, context)
 end
 </code></pre>
 
-<p>We can now synthesize the id function correctly, though we cannot annotate it yet
-because we&#39;re still missing quantification types.</p>
+<p>We can now synthesize the id function correctly.</p>
 
-<p>puts synthesize(
+<pre><code class="ruby">puts synthesize(
   Expression::Lambda.new(&quot;x&quot;, Expression::Variable.new(&quot;x&quot;)),
   Context.empty
-) # =&gt; #<data Type::Lambda argtype=#<data Type::Existential name="x1">, bodytype=#<data Type::Existential name="x2">&gt;</p>
+) # =&gt; #&lt;data Type::Lambda arg_type=#&lt;data Type::Existential name=&quot;x1&quot;&gt;, bodytype=#&lt;data Type::Existential name=&quot;x2&quot;&gt;&gt;
+</code></pre>
+
+<p>We cannot annotate it yet because we&#39;re still missing quantification types.</p>
+
+<h3>Quantification types</h3>
+
+<p>The signature of the id function is <code>forall. a -&gt; a</code>. For all is known as
+universal quantification in the paper. To support quantifications, we need
+to add the type definition and update our implementation of <code>type_well_formed?</code>,
+<code>occurs?</code> and <code>Context#apply</code>.</p>
+
+<pre><code class="ruby">module Type
+  # ...
+  Quantification = Data.define(:name, :subtype)
+end
+
+def type_well_formed?(type, context)
+  case type
+  # ...
+  in Type::Quantification(name, subtype)
+    type_well_formed?(subtype, context.push(Context::Element::Variable.new(name)))
+  end
+end
+
+def occurs?(name, type)
+  case type
+  # ...
+  in Type::Quantification(alpha, subtype)
+    name == alpha || occurs?(name, subtype)
+  end
+end
+
+class Context
+  def apply(type)
+    case type
+    # ...
+    in Type::Quantification(name, subtype)
+      type.with(subtype: apply(subtype))
+    end
+  end
+end
+</code></pre>
+
+<p>This gets us closer to annotating the id function, but now we&#39;re stuck on subtyping
+a lambda type with a quantification.</p>
+
+<pre><code class="ruby">puts synthesize(
+  Expression::Annotation.new(
+    Expression::Lambda.new(&quot;x&quot;, Expression::Variable.new(&quot;x&quot;)),
+    Type::Quantification.new(&quot;a&quot;, Type::Lambda.new(Type::Variable.new(&quot;a&quot;), Type::Variable.new(&quot;a&quot;)))
+  ),
+  Context.empty
+) # subtype mismatch: #&lt;data Type::Lambda arg_type=#&lt;data Type::Existential name=&quot;x1&quot;&gt;, body_type=#&lt;data Type::Existential name=&quot;x2&quot;&gt;&gt; #&lt;data Type::Quantification name=&quot;a&quot;, subtype=#&lt;data Type::Lambda arg_type=#&lt;data Type::Variable name=&quot;a&quot;&gt;, body_type=#&lt;data Type::Variable name=&quot;a&quot;&gt;&gt;&gt; (RuntimeError)
+</code></pre>
+
+<p>The typing rule we need to make progress is the following:</p>
+
+<p><img src="/images/11_17.png" alt="type_rule_check"></p>
+
+<p>This rule acts like an expansion step to other typing rules. We expand the
+quantification type by adding the quantification varible to the context, and then
+call <code>subtype</code> again with this modified context. When returning, we drop the
+variable. This is what the <code>Delta, alpha, Theta</code> means.</p>
 
       </div>
     </main>
