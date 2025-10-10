@@ -3,7 +3,7 @@
   <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>Bidirectional type checking</title>
+    <title>Bidirectional type checking step by step</title>
     <link rel="stylesheet" href="index.css" />
 
     <script async src="https://www.googletagmanager.com/gtag/js?id=G-7TMTHS88G9"></script>
@@ -30,7 +30,7 @@
       </a>
 
       <div class="border-b-2 dark:border-slate-900 mb-4">
-        <h1 class="my-6 text-5xl tracking-tight">Bidirectional type checking</h1>
+        <h1 class="my-6 text-5xl tracking-tight">Bidirectional type checking step by step</h1>
         <div class="text-slate-500 dark:text-slate-300 my-2">Published on 2025-08-13</div>
       </div>
 
@@ -531,6 +531,7 @@ end
 
 class Context
   module Element
++   Variable = Data.define(:name)
     TypedVariable = Data.define(:name, :type)
 +   UnsolvedExistential = Data.define(:name)
 +   SolvedExistential = Data.define(:name, :type)
@@ -824,6 +825,39 @@ end
 end
 </code></pre>
 
+<p>We also need to update our <code>type_well_formed?</code> function to support type variables,
+existentials and lambdas:</p>
+
+<pre><code class="ruby">class Context
+  # ... other methods
+
+  def has?(element)
+    @elements.include?(element)
+  end
+end
+
+def type_well_formed?(type, context)
+  case type
+  # we only had these two cases before for literal values
+  in Type::Int then true
+  in Type::String then true
+
+  in Type::Variable(name)
+    context.has?(Context::Element::Variable.new(name))
+
+  in Type::Existential(name)
+    context.has?(Context::Element::UnsolvedExistential.new(name)) ||
+      context.find_solved_existential(name).present?
+
+  in Type::Lambda(arg_type, body_type)
+    type_well_formed?(arg_type, context) &amp;&amp; type_well_formed?(body_type, context)
+
+  else
+    raise &quot;unknown type: #{type}&quot;
+  end
+end
+</code></pre>
+
 <p>With these functions in place, we have enough in place to delegate to subtying
 existentials to right instantiation:</p>
 
@@ -854,7 +888,7 @@ existentials to right instantiation:</p>
 end
 </code></pre>
 
-<p>No more errors now when synthesizing lambdas.</p>
+<p>Finally no more errors now when synthesizing this one lambda:</p>
 
 <pre><code class="ruby">puts synthesize(
   Expression::Lambda.new(&quot;x&quot;, Expression::LiteralInt.new(1)),
@@ -871,6 +905,23 @@ side tracks or new concepts or new abstractions to learn.</p>
 people, here&#39;s the typing rules we&#39;ve implemented, highlighted in red:</p>
 
 <p><img src="/images/11_15.png" alt="type_rule_check"></p>
+
+<p>Let&#39;s continue our journey by synthesizing the famous identity function <code>λa.a</code>.</p>
+
+<h3>Existentials subtyping existentials</h3>
+
+<p>If we try to synthesize the identity function we get the following error: &quot;subtype mismatch: x1 x2 (RuntimeError)&quot;.
+This is because our right instantiation function is very limited. The typing rule
+we need to support now is the following:</p>
+
+<p><img src="/images/11_16.png" alt="type_rule_check"></p>
+
+<p>This rule states that &quot;under context gamma existential beta is a subtype of existential alpha if,
+and only if, existential alpha exists in gamma and it is defined in a position before existential beta,
+with output gamma having existential beta solved to existential alpha&quot;.</p>
+
+<p>In other words, existential A is a subtype of existential B if A is defined before
+B. To implement this rule, replace unsolved existential B with solved existential B=A.</p>
 
       </div>
     </main>
