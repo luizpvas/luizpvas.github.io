@@ -13,8 +13,9 @@ I agree that it is actually simple, especially compared to
 algorithms that require constraint solving and unification. It is simple, but
 definitely not easy. We have some work ahead of us.
 
-If you want to skip ahead and look at the implementation, the code is available
-on [this gist](https://gist.github.com/luizpvas/4f13ac409095c08bb8c0616af53104e4).
+The code is available
+on [this gist](https://gist.github.com/luizpvas/4f13ac409095c08bb8c0616af53104e4)
+if you want to skip ahead and see the full implementation.
 
 ### Type checking
 
