@@ -539,7 +539,7 @@ def synthesize(expr, context)
 
     gamma = context.push([
       Context::Element::UnsolvedExistential.new(alpha_name),
-      Context::Element::UnsolvedExistential.new(alpha_name),
+      Context::Element::UnsolvedExistential.new(beta_name),
       arg_has_type_alpha
     ])
 
@@ -817,7 +817,7 @@ class Context
   # ... other methods
 
   def replace(element_old, element_new)
-    elements = @elements.map { |element| element == element_old ? element_new : element }
+    elements = @elements.flat_map { |element| element == element_old ? Array(element_new) : element }
 
     Context.new(elements)
   end
@@ -1115,3 +1115,332 @@ on the left side of the relation instead of the right side. This means we need t
 look into left instantiation to continue making progress.
 
 ### Left instantiation
+
+The first typing rule that is going to enable instanting existentials on the left is
+the following:
+
+![type_rule_check](/images/11_19.png)
+
+This is very, very similar to the first rule we saw for right instantiation. We
+can implement it with the following code:
+
+```ruby
+def instantiate_left(type, existential_name, context)
+  if monotype?(type) && type_well_formed?(type, context)
+    return context.replace(
+      Context::Element::UnsolvedExistential.new(existential_name),
+      Context::Element::SolvedExistential.new(existential_name, type)
+    )
+  end
+
+  raise "invalid left instantiation: #{type} #{existential_name}"
+end
+```
+
+Then, we can call `instantiate_left` from `subtype` as described by the following
+type rule, which looks very similar to the rule that delegates subtyping to right
+instantiation:
+
+![type_rule_check](/images/11_20.png)
+
+```ruby
+def subtype(type_a, type_b, context)
+  case [type_a, type_b]
+  # ...
+  in [Type::Existential(existential_name), _]
+    raise "circular instantiation: #{type_a} #{type_b}" if occurs?(existential_name, type_b)
+    instantiate_left(type_b, existential_name, context)
+  end
+end
+```
+
+We can finally annotate our id function successfully!
+
+```ruby
+puts synthesize(
+  Expression::Annotation.new(
+    Expression::Lambda.new("x", Expression::Variable.new("x")),
+    Type::Quantification.new("a", Type::Lambda.new(Type::Variable.new("a"), Type::Variable.new("a")))
+  ),
+  Context.empty
+) # => #<data Type::Quantification name="a", subtype=#<data Type::Lambda arg_type=#<data Type::Variable name="a">, body_type=#<data Type::Variable name="a">>>
+```
+
+Now that we can define the id function, let's call it with some values to make
+sure it behaves as expected. So our next is now is calling functions, which is also
+known as application.
+
+### Applications
+
+The rule that describes application synthesis is the following:
+
+![app_rule](/images/11_21.png)
+
+The conclusion states that `e2` applied to `e1` synthesizes type `C`. For application
+to work, `e1` must resolve to a lambda and `e2` must be a value of the same type as the
+argument type of the lambda. Just to be clear, `e1` does not need to be a literal lambda,
+it could be a variable that stands for a lambda that we resolve via lookup.
+
+This is our first time seeing the green arrow notation. This notation is similar to
+regular synthesize but specialized for the result of applying a function to a value.
+
+To apply `e1` to `e2` we first synthesize `e1`. This is described in first premise.
+The result of this synthesis needs to be a lambda, an existential or a quantification.
+Everything else is invalid. It might be useful to peek ahead some extra typing rules
+to see the full picture of application synthesizes.
+
+![app_rule](/images/11_22.png)
+
+I've highlighted `e1 synthesizes A` in red. The pink arrow points to the typing
+rule when `A` is an existential. The yellow arrow points to the typing rule when
+`A` is a lambda. The blue arrow points to the typing rule when `A` is a quantification,
+which, as you might have noticed, expands the quantification and calls synthesize again.
+
+The typing rule for quantification describes substitution, which we haven't seen yet.
+The notation used is `[â/a]A`. The notation for substitution is famously inconsistent
+across different papers, but in this case, we can read `[â/a]A` as "substitute `a` with `â` in `A`".
+
+### Substitution
+
+The paper does not provide an implementation for substitution, but we can implement it ourselves.
+
+```ruby
+def substitute(substitution_type, alpha, original_type)
+  case original_type
+  in Type::Variable(name)
+    name == alpha ? substitution_type : original_type
+
+  in Type::Existential(name)
+    name == alpha ? substitution_type : original_type
+
+  in Type::Lambda(arg_type, body_type)
+    original_type.with(
+      arg_type: substitute(substitution_type, alpha, arg_type),
+      body_type: substitute(substitution_type, alpha, body_type)
+    )
+
+  in Type::Quantification(name, subtype)
+    if name == alpha
+      original_type.with(subtype: substitution)
+    else
+      original_type.with(subtype: substitute(substitution_type, alpha, subtype))
+    end
+
+  else
+    original_type
+  end
+end
+```
+
+### Back to applications
+
+I believe we can implement all four application synthesis rules at once. Let's
+start with defining an expression for application.
+
+```diff
+module Expression
+  LiteralInt = Data.define(:value)
+  LiteralString = Data.define(:value)
+  Variable = Data.define(:name)
+  Annotation = Data.define(:expression, :type)
+  Lambda = Data.define(:arg_name, :body_expr)
++ Application = Data.define(:lambda, :arg)
+end
+```
+
+The first step is to handle `Expression::Application` on the `synthesize` function
+and then delegate to `synthesize_application` to continue into this branch.
+
+```ruby
+def synthesize(expr, context)
+  case expr
+  # ...
+  in Expression::Application(e1, e2)
+    a, theta = synthesize(e1, context)
+    c, delta = synthesize_application(theta.apply(a), e2, theta)
+    [c, delta]
+  end
+end
+```
+
+Then we can implement `synthesize_application` with the three typing rules we have
+seen earlier.
+
+```ruby
+def synthesize_application(lambda_type, arg_expr, context)
+  case lambda_type
+
+  # Figure 10. ∀App
+  #
+  # Γ, â ⊢ [â/a]A·e =>=> C ⊣ Δ
+  # --------------------------
+  # Γ ⊢ ∀a.A·e =>=> C ⊣ Δ
+  in Type::Quantification(alpha, a)
+    â_name = fresh_name
+    â_unsolved = Context::Element::UnsolvedExistential.new(â_name)
+    â_type = Type::Existential.new(â_name)
+    gamma = context.push(â_unsolved)
+    substituted_a = substitute(â_type, alpha, a)
+    synthesize_application(substituted_a, arg_expr, gamma)
+
+  # Figure 10. âApp
+  #
+  # Γ[â2, â1, â = â1 -> â2] ⊢ e <= â1 ⊣ Δ
+  # -------------------------------------
+  # Γ[â] ⊢ â·e =>=> â2 ⊣ Δ
+  in Type::Existential(â)
+    â1_name = fresh_name
+    â2_name = fresh_name
+    â1 = Context::Element::UnsolvedExistential.new(â1_name)
+    â2 = Context::Element::UnsolvedExistential.new(â2_name)
+    â_solved = Context::Element::SolvedExistential.new(â, Type::Lambda.new(Type::Existential.new(â1), Type::Existential.new(â2)))
+    gamma = context.replace(Context::Element::UnsolvedExistential.new(â), [â2, â1, â_solved])
+    delta = check(arg_expr, Type::Existential.new(â1_name), gamma)
+    [Type::Existential.new(â2_name), delta]
+
+  # Figure 10. ->App
+  #
+  # Γ ⊢ e <= A ⊣ Δ
+  # -----------------------
+  # Γ ⊢ A -> C·e =>=> C ⊣ Δ
+  in Type::Lambda(arg_type, body_type)
+    delta = check(arg_expr, arg_type, context)
+    [body_type, delta]
+
+  else
+    raise "unexpected application: #{lambda_type}"
+  end
+end
+```
+
+With this in place, we can hopefully synthesize an application to our id function
+and get back the expected type.
+
+
+```ruby
+id = Expression::Annotation.new(
+  Expression::Lambda.new("x", Expression::Variable.new("x")),
+  Type::Quantification.new("a", Type::Lambda.new(Type::Variable.new("a"), Type::Variable.new("a")))
+)
+
+puts synthesize(
+  Expression::Application.new(id, Expression::LiteralInt.new(42)),
+  Context.empty
+) # => #<data Type::Existential name="x5">
+
+puts synthesize(
+  Expression::Application.new(id, Expression::LiteralString.new("foo")),
+  Context.empty
+) # => #<data Type::Existential name="x8">
+```
+
+Well, that's a little disappointing. But wait! We're still missing one last step to resolve the existential into a meaningful type. We just need to apply
+the output context to the output type. Let's create a helper function to
+be the entry point of our algorithm:
+
+```rb
+def infer(expr)
+  type, context = synthesize(expr, Context.empty)
+  context.apply(type)
+end
+```
+
+With this, we finally have the output we were expecting!
+
+```ruby
+puts infer(
+  Expression::Application.new(id, Expression::LiteralInt.new(42))
+) # => #<data Type::Int>
+
+puts infer(
+  Expression::Application.new(id, Expression::LiteralString.new("foo"))
+) # => #<data Type::String>
+```
+
+We have implemented 19 out of the 28 typing rules. We're over 70% of the way there.
+In fact, we are so close to being done that there is only one more concept we
+haven't seen.
+
+### Context markers
+
+Context markers are placeholders used to facilitate splitting after calling functions
+that modify the context. We can see the notation in this typing rule:
+
+![app_rule](/images/11_24.png)
+
+Notice there is a caret symbol pointing right. This is a marker. The only purpose
+of this marker is being used to split the context after recursively invoking `subtype`.
+Notice that delta is everything before the marker, and theta is everything after the marker.
+
+Let's add the marker definition as a context element.
+
+```diff
+class Context
+  module Element
+    Variable = Data.define(:name)
+    TypedVariable = Data.define(:name, :type)
+    UnsolvedExistential = Data.define(:name)
+    SolvedExistential = Data.define(:name, :type)
++   Marker = Data.define(:name)
+  end
+end
+```
+This typing rule is a bit tricky. In order to invoke its path, we need to subtype
+a quantification with another type. The most common way for a quantification to
+appear on the left of a subtype is when a function accepts another function as
+an argument. For example:
+
+```
+call42 :: (Int -> Int) -> Int
+call42 f = f 42
+
+call42 id
+```
+
+In this example, `call42` expects a function `Int -> Int`, and we provide `forall a. a -> a`.
+This is valid, but our type checker currenntly fails with a subtype error telling us that
+quantification is not a subtype of lambda.
+
+Let's fix this by implementing the typing rule on the `subtype` function.
+
+```ruby
+def subtype(type_a, type_b, context)
+  case [type_a, type_b]
+    # ...
+    in [Type::Quantification(alpha, a), _]
+      â_name = fresh_name
+      â_marker = Context::Element::Marker.new(â_name)
+      â_unsolved = Context::Element::UnsolvedExistential.new(â_name)
+      â_type = Type::Existential.new(â_name)
+      substituted_a = substitute(â_type, alpha, a)
+      gamma = context.push(â_marker).push(â_unsolved)
+      result = subtype(substituted_a, type_b, gamma)
+      delta, _theta = result.split(â_marker)
+      delta
+  end
+end
+```
+
+With this we can synthesize our previous example with `call42`.
+
+```ruby
+id = Expression::Annotation.new(
+  Expression::Lambda.new("x", Expression::Variable.new("x")),
+  Type::Quantification.new("a", Type::Lambda.new(Type::Variable.new("a"), Type::Variable.new("a")))
+)
+
+call42 = Expression::Annotation.new(
+  Expression::Lambda.new(
+    "f",
+    Expression::Application.new(Expression::Variable.new("f"), Expression::LiteralInt.new(42))
+  ),
+  Type::Lambda.new(
+    Type::Lambda.new(Type::Int.new, Type::Int.new),
+    Type::Int.new
+  )
+)
+
+puts infer(Expression::Application.new(call42, id)) # => #<data Type::Int>
+```
+
+### The final 8 typing rules.

@@ -4,6 +4,7 @@ module Expression
   Variable = Data.define(:name)
   Annotation = Data.define(:expression, :type)
   Lambda = Data.define(:arg_name, :body_expr)
+  Application = Data.define(:lambda, :arg)
 end
 
 module Type
@@ -21,6 +22,7 @@ class Context
     TypedVariable = Data.define(:name, :type)
     UnsolvedExistential = Data.define(:name)
     SolvedExistential = Data.define(:name, :type)
+    Marker = Data.define(:name)
   end
 
   def self.empty = new([])
@@ -42,29 +44,37 @@ class Context
   end
 
   def replace(element_old, element_new)
-    elements = @elements.map { |element| element == element_old ? element_new : element }
+    elements = @elements.flat_map { |element| element == element_old ? Array(element_new) : element }
 
     Context.new(elements)
   end
 
+  # Figure 8.
   def apply(type)
     case type
+    # [Γ]1 = 1
     in Type::Int
       type
 
+    # [Γ]1 = 1
     in Type::String
       type
 
+    # [Γ]a = a
     in Type::Variable
       type
 
+    # [Γ[â]]â = â
+    # [Γ[â = t]]â = [Γ[â = t]]t
     in Type::Existential(name)
       solved_type = find_solved_existential(name)
       solved_type ? apply(solved_type) : type
 
+    # [Γ](A -> B) = ([Γ]A) -> ([Γ]B)
     in Type::Lambda(arg_type, body_type)
       type.with(arg_type: apply(arg_type), body_type: apply(body_type))
 
+    # [Γ](∀a.A) = ∀a.[Γ]A
     in Type::Quantification(name, subtype)
       type.with(subtype: apply(subtype))
 
@@ -120,32 +130,46 @@ end
 
 def type_well_formed?(type, context)
   case type
+  # Figure 7. UnitWF
+  #
+  # Γ ⊢ 1
   in Type::Int
     true
 
+  # Figure 7. UnitWF
+  #
+  # Γ ⊢ 1
   in Type::String
     true
 
+  # Figure 7. UvarWF
+  #
+  # Γ[a] ⊢ a
   in Type::Variable(name)
     context.has?(Context::Element::Variable.new(name))
 
+  # Figure 7. EvarWF and SolvedEvarWF
+  #
+  # Γ[â] ⊢ â
+  # Γ[â=t] ⊢ â
   in Type::Existential(name)
     context.has?(Context::Element::UnsolvedExistential.new(name)) ||
       context.find_solved_existential(name).present?
 
+  # Figure 7. ArrowWF
+  #
+  # Γ ⊢ A    Γ ⊢ B
+  # --------------
+  # Γ ⊢ A -> B
   in Type::Lambda(arg_type, body_type)
-    puts "how about here?"
     type_well_formed?(arg_type, context) && type_well_formed?(body_type, context)
 
-  # ForallWF
+  # Figure 7. ForallWF
   #
   # Γ, a ⊢ A
   # ---------
   # Γ ⊢ ∀a.A
   in Type::Quantification(name, type)
-    puts "got here?"
-    puts name
-    puts type
     type_well_formed?(type, context.push(Context::Element::Variable.new(name)))
 
   else
@@ -161,22 +185,43 @@ end
 
 def synthesize(expr, context)
   case expr
+  # Figure 11. 1I=>
+  #
+  # Γ ⊢ () => 1 ⊣ Γ
   in Expression::LiteralInt
     [Type::Int.new, context]
 
+  # Figure 11. 1I=>
+  #
+  # Γ ⊢ () => 1 ⊣ Γ
   in Expression::LiteralString
     [Type::String.new, context]
 
+  # Figure 11. Var
+  #
+  # (x : A) ∈ Γ
+  # --------------
+  # Γ ⊢ x => A ⊣ Γ
   in Expression::Variable(varname)
     vartype = context.lookup(varname)
     return [vartype, context] if vartype
     raise "unknown variable"
 
+  # Figure 11. Anno
+  #
+  # Γ ⊢ A    Γ ⊢ e <= A ⊣ Δ
+  # -----------------------
+  # Γ ⊢ (e : A) => A ⊣ Δ
   in Expression::Annotation(e, type)
     raise "invalid type" if !type_well_formed?(type, context)
     delta = check(e, type, context)
     [type, delta]
 
+  # Figure 11. ->I=>
+  #
+  # Γ, â, b̂, x : â ⊢ e <= b̂ ⊣ Δ, x : â, Θ
+  # -------------------------------------
+  # Γ ⊢ λx.e => â -> b̂ ⊣ Δ
   in Expression::Lambda(arg_name, body_expr)
     alpha_name = fresh_name
     beta_name = fresh_name
@@ -189,7 +234,7 @@ def synthesize(expr, context)
 
     gamma = context.push([
       Context::Element::UnsolvedExistential.new(alpha_name),
-      Context::Element::UnsolvedExistential.new(alpha_name),
+      Context::Element::UnsolvedExistential.new(beta_name),
       arg_has_type_alpha
     ])
 
@@ -197,20 +242,86 @@ def synthesize(expr, context)
     delta, _theta = output_context.split(arg_has_type_alpha)
     [lambda_type, delta]
 
+  # Figure 10. ->E
+  #
+  # Γ ⊢ e1 => A ⊣ Θ    Θ ⊢ [Θ]A·e2 =>=> C ⊣ Δ
+  # ------------------------------------------
+  # Γ ⊢ e1 e2 => C ⊣ Δ
+  in Expression::Application(e1, e2)
+    a, theta = synthesize(e1, context)
+    c, delta = synthesize_application(theta.apply(a), e2, theta)
+    [c, delta]
+
   else
     raise "unknown expression"
+  end
+end
+
+def synthesize_application(lambda_type, arg_expr, context)
+  case lambda_type
+
+  # Figure 10. ∀App
+  #
+  # Γ, â ⊢ [â/a]A·e =>=> C ⊣ Δ
+  # --------------------------
+  # Γ ⊢ ∀a.A·e =>=> C ⊣ Δ
+  in Type::Quantification(alpha, a)
+    â_name = fresh_name
+    â_unsolved = Context::Element::UnsolvedExistential.new(â_name)
+    â_type = Type::Existential.new(â_name)
+    gamma = context.push(â_unsolved)
+    substituted_a = substitute(â_type, alpha, a)
+    synthesize_application(substituted_a, arg_expr, gamma)
+
+  # Figure 10. âApp
+  #
+  # Γ[â2, â1, â = â1 -> â2] ⊢ e <= â1 ⊣ Δ
+  # -------------------------------------
+  # Γ[â] ⊢ â·e =>=> â2 ⊣ Δ
+  in Type::Existential(â)
+    â1_name = fresh_name
+    â2_name = fresh_name
+    â1 = Context::Element::UnsolvedExistential.new(â1_name)
+    â2 = Context::Element::UnsolvedExistential.new(â2_name)
+    â_solved = Context::Element::SolvedExistential.new(â, Type::Lambda.new(Type::Existential.new(â1), Type::Existential.new(â2)))
+    gamma = context.replace(Context::Element::UnsolvedExistential.new(â), [â2, â1, â_solved])
+    delta = check(arg_expr, Type::Existential.new(â1_name), gamma)
+    [Type::Existential.new(â2_name), delta]
+
+  # Figure 10. ->App
+  #
+  # Γ ⊢ e <= A ⊣ Δ
+  # -----------------------
+  # Γ ⊢ A -> C·e =>=> C ⊣ Δ
+  in Type::Lambda(arg_type, body_type)
+    delta = check(arg_expr, arg_type, context)
+    [body_type, delta]
+
+  else
+    raise "unexpected application: #{lambda_type}"
   end
 end
 
 def check(expr, type, context)
   case [expr, type]
 
+  # Figure 11. 1I
+  #
+  # Γ ⊢ () <= 1  ⊣ Γ
   in [Expression::LiteralInt, Type::Int]
     context
 
+  # Figure 11. 1I
+  #
+  # Γ ⊢ () <= 1  ⊣ Γ
   in [Expression::LiteralString, Type::String]
     context
 
+  # Figure 11. Sub
+  #
+  # Γ ⊢ e => A ⊣ Θ    Θ ⊢ [Θ]A <: [Θ]B ⊣ Δ
+  # --------------------------------------
+  # Γ ⊢ e <= B ⊣ Δ
   else
     synthesized_type, theta = synthesize(expr, context)
     subtype(theta.apply(synthesized_type), theta.apply(type), theta)
@@ -220,16 +331,28 @@ end
 def subtype(type_a, type_b, context)
   case [type_a, type_b]
 
+  # Figure 9. Unit
+  #
+  # Γ ⊢ 1 <: 1 ⊣ Γ
   in [Type::Int, Type::Int]
     context
 
+  # Figure 9. Unit
+  #
+  # Γ ⊢ 1 <: 1 ⊣ Γ
   in [Type::String, Type::String]
     context
 
+  # Figure 9. Var
+  #
+  # Γ[a] ⊢ a <: a ⊣ Γ[a]
   in [Type::Variable(name_a), Type::Variable(name_b)]
     raise "subtype mismatch: #{name_a} #{name_b}" if name_a != name_b
     context
 
+  # Figure 9. Exvar (+ fallback to right instantiation)
+  #
+  # Γ[â] ⊢ â <: â ⊣ Γ[â]
   in [Type::Existential(name_a), Type::Existential(name_b)]
     return context if name_a == name_b
     instantiate_right(type_a, name_b, context)
@@ -244,6 +367,22 @@ def subtype(type_a, type_b, context)
     delta = subtype(theta.apply(a2), theta.apply(b2), theta)
     delta
 
+  # Figure 9. <:∀L
+  #
+  # Γ, ▶â, â ⊢ [â/a]A <: B ⊣ Δ, ▶â, Θ
+  # ---------------------------------
+  # Γ ⊢ ∀a.A <: B ⊣ Δ
+  in [Type::Quantification(alpha, a), _]
+    â_name = fresh_name
+    â_marker = Context::Element::Marker.new(â_name)
+    â_unsolved = Context::Element::UnsolvedExistential.new(â_name)
+    â_type = Type::Existential.new(â_name)
+    substituted_a = substitute(â_type, alpha, a)
+    gamma = context.push(â_marker).push(â_unsolved)
+    result = subtype(substituted_a, type_b, gamma)
+    delta, _theta = result.split(â_marker)
+    delta
+
   # Figure 9. <:∀R
   #
   # Γ, a ⊢ A <: B ⊣ Δ, a, Θ
@@ -256,6 +395,20 @@ def subtype(type_a, type_b, context)
     delta, _theta = result.split(alpha_var)
     delta
 
+  # Figure 9. <:InstantiateL
+  #
+  # â ∉ FV(A)    Γ[â] ⊢ â <=: A ⊣ Δ
+  # --------------------------------
+  # Γ[â] ⊢ â <: A ⊣ Δ
+  in [Type::Existential(existential_name), _]
+    raise "circular instantiation: #{type_a} #{type_b}" if occurs?(existential_name, type_b)
+    instantiate_left(type_b, existential_name, context)
+
+  # Figure 9. <:InstantiateR
+  #
+  # â ∉ FV(A)    Γ[â] ⊢ A <=: â ⊣ Δ
+  # --------------------------------
+  # Γ[â] ⊢ A <: â ⊣ Δ
   in [_, Type::Existential(existential_name)]
     raise "circular instantiation: #{type_a} #{type_b}" if occurs?(existential_name, type_a)
     instantiate_right(type_a, existential_name, context)
@@ -266,9 +419,27 @@ def subtype(type_a, type_b, context)
 end
 
 def instantiate_left(type, existential_name, context)
+  # Figure 10. InstLSolve
+  #
+  # Γ ⊢ t
+  # -------------------------------
+  # Γ, a, Γ' ⊢ â <=: t ⊣ Γ, â=t, Γ'
+  if monotype?(type) && type_well_formed?(type, context)
+    return context.replace(
+      Context::Element::UnsolvedExistential.new(existential_name),
+      Context::Element::SolvedExistential.new(existential_name, type)
+    )
+  end
+
+  raise "invalid left instantiation: #{type} #{existential_name}"
 end
 
 def instantiate_right(type, existential_name, context)
+  # Figure 10. InstRSolve
+  #
+  # Γ ⊢ t
+  # --------------------------------
+  # Γ, â, Γ' ⊢ t <=: â ⊣ Γ, â = t, Γ'
   if monotype?(type) && type_well_formed?(type, context)
     return context.replace(
       Context::Element::UnsolvedExistential.new(existential_name),
@@ -277,6 +448,9 @@ def instantiate_right(type, existential_name, context)
   end
 
   case type
+  # Figure 10. InstRReach
+  #
+  # Γ[â][b̂] ⊢ â <=: b̂ ⊣ Γ[â][b̂ = â]
   in Type::Existential(beta_name)
     alpha_name = existential_name
     alpha = Context::Element::UnsolvedExistential(alpha_name)
@@ -291,6 +465,32 @@ def instantiate_right(type, existential_name, context)
 
   else
     raise "invalid right instantiation: #{type} #{existential_name}"
+  end
+end
+
+def substitute(substitution_type, alpha, original_type)
+  case original_type
+  in Type::Variable(name)
+    name == alpha ? substitution_type : original_type
+
+  in Type::Existential(name)
+    name == alpha ? substitution_type : original_type
+
+  in Type::Lambda(arg_type, body_type)
+    original_type.with(
+      arg_type: substitute(substitution_type, alpha, arg_type),
+      body_type: substitute(substitution_type, alpha, body_type)
+    )
+
+  in Type::Quantification(name, subtype)
+    if name == alpha
+      original_type.with(subtype: substitution)
+    else
+      original_type.with(subtype: substitute(substitution_type, alpha, subtype))
+    end
+
+  else
+    original_type
   end
 end
 
@@ -319,6 +519,11 @@ def occurs?(name, type)
   end
 end
 
+def infer(expr)
+  type, context = synthesize(expr, Context.empty)
+  context.apply(type)
+end
+
 puts synthesize(
   Expression::LiteralInt.new(42),
   Context.empty
@@ -338,4 +543,22 @@ puts synthesize(
     Type::Quantification.new("a", Type::Lambda.new(Type::Variable.new("a"), Type::Variable.new("a")))
   ),
   Context.empty
-) # subtype mismatch: #<data Type::Lambda arg_type=#<data Type::Existential name="x1">, body_type=#<data Type::Existential name="x2">> #<data Type::Quantification name="a", subtype=#<data Type::Lambda arg_type=#<data Type::Variable name="a">, body_type=#<data Type::Variable name="a">>> (RuntimeError)
+) # => #<data Type::Quantification name="a", subtype=#<data Type::Lambda arg_type=#<data Type::Variable name="a">, body_type=#<data Type::Variable name="a">>>
+
+id = Expression::Annotation.new(
+  Expression::Lambda.new("x", Expression::Variable.new("x")),
+  Type::Quantification.new("a", Type::Lambda.new(Type::Variable.new("a"), Type::Variable.new("a")))
+)
+
+call42 = Expression::Annotation.new(
+  Expression::Lambda.new(
+    "f",
+    Expression::Application.new(Expression::Variable.new("f"), Expression::LiteralInt.new(42))
+  ),
+  Type::Lambda.new(
+    Type::Lambda.new(Type::Int.new, Type::Int.new),
+    Type::Int.new
+  )
+)
+
+puts infer(Expression::Application.new(call42, id)) # => #<data Type::Int>
