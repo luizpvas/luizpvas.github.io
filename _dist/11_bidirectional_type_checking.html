@@ -1434,7 +1434,30 @@ call42 = Expression::Annotation.new(
 puts infer(Expression::Application.new(call42, id)) # =&gt; #&lt;data Type::Int&gt;
 </code></pre>
 
-<h3>The final 8 typing rules.</h3>
+<h3>The final 8 typing rules...</h3>
+
+<p>... will be left as an exercise for the reader 😁</p>
+
+<h4>Algorithmic typing</h4>
+
+<p>The following rules kinda of work already because type checking has a fallback to
+subtyping (via the substitution rule) that is capable of handling lambdas and
+quantifications, but we should implement them for completeness.</p>
+
+<p><img src="/images/11_25.png" alt="app_rule">
+<img src="/images/11_26.png" alt="app_rule"></p>
+
+<h4>Algorithmic subtyping</h4>
+
+<p><img src="/images/11_27.png" alt="app_rule"></p>
+
+<h4>Instantiation</h4>
+
+<p><img src="/images/11_28.png" alt="app_rule">
+<img src="/images/11_29.png" alt="app_rule">
+<img src="/images/11_30.png" alt="app_rule">
+<img src="/images/11_31.png" alt="app_rule">
+<img src="/images/11_32.png" alt="app_rule"></p>
 
       </div>
     </main>
