@@ -84,6 +84,10 @@ class Context
     @elements.include?(element)
   end
 
+  def index(element)
+    @elements.index(element)
+  end
+
   def push(elements)
     Context.new(@elements + Array(elements))
   end
@@ -195,8 +199,8 @@ def subtype(type_a, type_b, context)
     context
 
   in [Type::Existential(name_a), Type::Existential(name_b)]
-    raise "subtype mismatch: #{name_a} #{name_b}" if name_a != name_b
-    context
+    return context if name_a == name_b
+    instantiate_right(type_a, name_b, context)
 
   in [_, Type::Existential(existential_name)]
     raise "circular instantiation: #{type_a} #{type_b}" if occurs?(existential_name, type_a)
@@ -215,7 +219,22 @@ def instantiate_right(type, existential_name, context)
     )
   end
 
-  raise "invalid right instantiation: #{type} #{existential_name}"
+  case type
+  in Type::Existential(beta_name)
+    alpha_name = existential_name
+    alpha = Context::Element::UnsolvedExistential(alpha_name)
+    beta = Context::Element::UnsolvedExistential(beta_name)
+    if context.index(alpha) < context.index(beta)
+      solved = Context::Element::SolvedExistential.new(beta_name, Type::Existential.new(alpha_name))
+      context.replace(beta, solved)
+    else
+      solved = Context::Element::SolvedExistential.new(alpha_name, Type::Existential.new(beta_name))
+      context.replace(alpha, solved)
+    end
+
+  else
+    raise "invalid right instantiation: #{type} #{existential_name}"
+  end
 end
 
 def occurs?(name, type)
@@ -254,6 +273,6 @@ puts synthesize(
 ) # => #<data Type::String>
 
 puts synthesize(
-  Expression::Lambda.new("x", Expression::Variable.new(1)),
+  Expression::Lambda.new("x", Expression::Variable.new("x")),
   Context.empty
 ) # => #<data Type::Lambda argtype=#<data Type::Existential name="x1">, bodytype=#<data Type::Existential name="x2">>
