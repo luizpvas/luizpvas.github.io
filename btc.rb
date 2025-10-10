@@ -252,6 +252,9 @@ def subtype(type_a, type_b, context)
   end
 end
 
+def instantiate_left(type, existential_name, context)
+end
+
 def instantiate_right(type, existential_name, context)
   if type_well_formed?(type, context)
     return context.replace(
