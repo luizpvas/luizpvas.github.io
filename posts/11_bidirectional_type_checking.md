@@ -2,8 +2,8 @@
 -- publication_date: 2025-08-13
 -- summary:
 
-This article is intended for people struggling with papers telling you their
-algorithm is extraordinarily simple and then giving you this:
+This article is intended for people with little experience in type theory and programming
+language theory struggling with papers telling them their algorithm is extraordinarily simple before showing this:
 
 ![image](/images/11_01.png)
 
@@ -13,26 +13,24 @@ I agree that it is actually simple, especially compared to
 algorithms that require constraint solving and unification. It is simple, but
 definitely not easy. We have some work ahead of us.
 
+If you want to skip ahead and look at the implementation, the code is available
+on [this gist](https://gist.github.com/luizpvas/4f13ac409095c08bb8c0616af53104e4).
+
 ### Type checking
 
-Type checking is the process that validates expressions against type rules.
-
-Expressions are usually obtained from parsing, which is the process that converts
-text, the source code, into a data structure that is better suited for inspection
-and manipulation. The data structure is usually a tree, commonly referred to as
-AST, where each node represents an expression pointing to its subexpressions.
+Type checking is the process that validates expressions against type rules. This is
+the core of the algorithm we're about to implement.
 
 For the rest of this article, we'll talk about a made up programming language
-with literals for integers and strings, variables and functions.
-We'll also look at array literals and sum types at the end.
+with literals for integers and strings and functions.
 
 ### The `synthesize` function
 
 There are two distinct functions at the core of bidirectional type checking
 that call each other, recursively, in order to resolve the type of an expression.
 Those functions are `synthesize`, which infers the type of an expression, and
-`check`, which checks if the expression has the expected type. For learning
-purposes, it is sufficient to think of their signatures as:
+`check`, which checks if the expression has the expected type. For now
+it is sufficient to think of their signatures as:
 
 ```ruby
 def synthesize(expr)  # returns a type
@@ -103,14 +101,14 @@ The context is a container that holds symbols, like variable names, function nam
 and their types (and some other stuff we're about to see).
 The data structure for context is a list, where the order of the elements
 in the list is the order they appear in the code. For example, the
-following pseudo-js-code
+following code...
 
 ```js
 let id = 10;
 let email = "person@example.org";
 ```
 
-would push `id : Int` and `email : String`, in that order, into the context.
+...would push `id : Int` and `email : String`, in that order, into the context.
 
 ### Variables
 
@@ -149,7 +147,7 @@ showed earlier was a simplified version. The real signatures of `synthesize` and
 
 ```ruby
 def synthesize(expr, context)  # returns a (type, context)
-def check(expr, type, context) # returns (boolean, context)
+def check(expr, type, context) # returns context or raises an error if the type is not compatible
 ```
 
 The implementation of synthesize, considering the new variable case properly
@@ -209,7 +207,7 @@ class Context
   end
 
   def lookup(name)
-    typedvar =
+    typed_var =
       @elements.find do |element|
         case element
         in Element::TypedVariable(varname, _) then varname == name
@@ -217,20 +215,18 @@ class Context
         end
       end
 
-    typedvar&.then { it.type }
+    typed_var&.then { it.type }
   end
 end
 ```
 
-Apart from the fact we cannot yet add definitions to the context, with the code
-above we can successfully synthesize variables.
+W the code above we can successfully synthesize variables.
 
 ### Annotations
 
 The next typing rule for our language is annotation. It does not
 matter if the language defines annotation as a separate construct (like Haskell)
-from functions and values or if annotations are written next to the expressions
-(like Typescript).
+or if annotations are written next to the expressions (like Typescript).
 
 The rule synthesizing annotations is as follows:
 
@@ -297,7 +293,7 @@ the program is not lying to the compiler. It checks that the expression `e`
 type checks against `A`.
 
 In order to implement `check` we need at least one typing rule, so let's stash
-in our head the annotation synthesize rule and look at the simplest rule for checking
+the annotation synthesize rule in our head and look at the simplest rule for checking
 literals:
 
 ![type_rule_check_literal](/images/11_06.png)
@@ -466,7 +462,7 @@ class Context
   end
 
   def lookup(name)
-    typedvar =
+    typed_var =
       @elements.find do |element|
         case element
         in Element::TypedVariable(varname, _) then varname == name
@@ -474,7 +470,7 @@ class Context
         end
       end
 
-    typedvar&.then { it.type }
+    typed_var&.then { it.type }
   end
 
 + def push(elements)
@@ -1445,13 +1441,12 @@ puts infer(Expression::Application.new(call42, id)) # => #<data Type::Int>
 
 ### The final 8 typing rules...
 
-... will be left as an exercise for the reader 😁
+... will be left as an exercise for the reader 😁. If you're interested in the full
+implementation, the code is available on [this gist](https://gist.github.com/luizpvas/4f13ac409095c08bb8c0616af53104e4).
+
+Here are missing typing rules:
 
 #### Algorithmic typing
-
-The following rules kinda of work already because type checking has a fallback to
-subtyping (via the substitution rule) that is capable of handling lambdas and
-quantifications, but we should implement them for completeness.
 
 ![app_rule](/images/11_25.png)
 ![app_rule](/images/11_26.png)

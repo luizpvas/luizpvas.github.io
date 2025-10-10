@@ -19,9 +19,9 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.11.1/highlight.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.11.1/languages/haskell.min.js"></script>
   </head>
-  <body class="bg-slate-100 dark:bg-slate-800 dark:text-white">
-    <main class="max-w-screen-md mx-4 lg:mx-auto pt-4">
-      <a href="index.html" class="inline-flex border dark:border-slate-900 items-center bg-slate-200 dark:bg-slate-700 hover:border-blue-500 px-3 py-1 rounded-full">
+  <body class="bg-slate-200 dark:bg-slate-800 dark:text-white">
+    <main class="max-w-[960px] mx-auto pt-4">
+      <a href="index.html" class="inline-flex border border-gray-300 dark:border-slate-900 items-center bg-slate-50 dark:bg-slate-700 hover:bg-white hover:border-black px-3 py-1 rounded-full">
         <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-5 h-5">
           <path stroke-linecap="round" stroke-linejoin="round" d="M10.5 19.5L3 12m0 0l7.5-7.5M3 12h18" />
         </svg>
@@ -34,9 +34,9 @@
         <div class="text-slate-500 dark:text-slate-300 my-2">Published on 2025-08-13</div>
       </div>
 
-      <div class="prose dark:prose-invert lg:prose-xl mb-12">
-        <p>This article is intended for people struggling with papers telling you their
-algorithm is extraordinarily simple and then giving you this:</p>
+      <div class="prose dark:prose-invert lg:prose-xl mb-12 bg-slate-50 shadow-lg rounded mx-auto max-w-[960px] p-8">
+        <p>This article is intended for people with little experience in type theory and programming
+language theory struggling with papers telling them their algorithm is extraordinarily simple before showing this:</p>
 
 <p><img src="/images/11_01.png" alt="image"></p>
 
@@ -46,26 +46,24 @@ I agree that it is actually simple, especially compared to
 algorithms that require constraint solving and unification. It is simple, but
 definitely not easy. We have some work ahead of us.</p>
 
+<p>If you want to skip ahead and look at the implementation, the code is available
+on <a href="https://gist.github.com/luizpvas/4f13ac409095c08bb8c0616af53104e4">this gist</a>.</p>
+
 <h3>Type checking</h3>
 
-<p>Type checking is the process that validates expressions against type rules.</p>
-
-<p>Expressions are usually obtained from parsing, which is the process that converts
-text, the source code, into a data structure that is better suited for inspection
-and manipulation. The data structure is usually a tree, commonly referred to as
-AST, where each node represents an expression pointing to its subexpressions.</p>
+<p>Type checking is the process that validates expressions against type rules. This is
+the core of the algorithm we&#39;re about to implement.</p>
 
 <p>For the rest of this article, we&#39;ll talk about a made up programming language
-with literals for integers and strings, variables and functions.
-We&#39;ll also look at array literals and sum types at the end.</p>
+with literals for integers and strings and functions.</p>
 
 <h3>The <code>synthesize</code> function</h3>
 
 <p>There are two distinct functions at the core of bidirectional type checking
 that call each other, recursively, in order to resolve the type of an expression.
 Those functions are <code>synthesize</code>, which infers the type of an expression, and
-<code>check</code>, which checks if the expression has the expected type. For learning
-purposes, it is sufficient to think of their signatures as:</p>
+<code>check</code>, which checks if the expression has the expected type. For now
+it is sufficient to think of their signatures as:</p>
 
 <pre><code class="ruby">def synthesize(expr)  # returns a type
 def check(expr, type) # returns true or false
@@ -133,13 +131,13 @@ other typing rules.</p>
 and their types (and some other stuff we&#39;re about to see).
 The data structure for context is a list, where the order of the elements
 in the list is the order they appear in the code. For example, the
-following pseudo-js-code</p>
+following code...</p>
 
 <pre><code class="js">let id = 10;
 let email = &quot;person@example.org&quot;;
 </code></pre>
 
-<p>would push <code>id : Int</code> and <code>email : String</code>, in that order, into the context.</p>
+<p>...would push <code>id : Int</code> and <code>email : String</code>, in that order, into the context.</p>
 
 <h3>Variables</h3>
 
@@ -175,7 +173,7 @@ showed earlier was a simplified version. The real signatures of <code>synthesize
 <code>check</code> are:</p>
 
 <pre><code class="ruby">def synthesize(expr, context)  # returns a (type, context)
-def check(expr, type, context) # returns (boolean, context)
+def check(expr, type, context) # returns context or raises an error if the type is not compatible
 </code></pre>
 
 <p>The implementation of synthesize, considering the new variable case properly
@@ -233,7 +231,7 @@ of the facts we have gathered from the program we are type checking.</p>
   end
 
   def lookup(name)
-    typedvar =
+    typed_var =
       @elements.find do |element|
         case element
         in Element::TypedVariable(varname, _) then varname == name
@@ -241,20 +239,18 @@ of the facts we have gathered from the program we are type checking.</p>
         end
       end
 
-    typedvar&amp;.then { it.type }
+    typed_var&amp;.then { it.type }
   end
 end
 </code></pre>
 
-<p>Apart from the fact we cannot yet add definitions to the context, with the code
-above we can successfully synthesize variables.</p>
+<p>W the code above we can successfully synthesize variables.</p>
 
 <h3>Annotations</h3>
 
 <p>The next typing rule for our language is annotation. It does not
 matter if the language defines annotation as a separate construct (like Haskell)
-from functions and values or if annotations are written next to the expressions
-(like Typescript).</p>
+or if annotations are written next to the expressions (like Typescript).</p>
 
 <p>The rule synthesizing annotations is as follows:</p>
 
@@ -324,7 +320,7 @@ the program is not lying to the compiler. It checks that the expression <code>e<
 type checks against <code>A</code>.</p>
 
 <p>In order to implement <code>check</code> we need at least one typing rule, so let&#39;s stash
-in our head the annotation synthesize rule and look at the simplest rule for checking
+the annotation synthesize rule in our head and look at the simplest rule for checking
 literals:</p>
 
 <p><img src="/images/11_06.png" alt="type_rule_check_literal"></p>
@@ -487,7 +483,7 @@ into two at a given <code>element</code>.</p>
   end
 
   def lookup(name)
-    typedvar =
+    typed_var =
       @elements.find do |element|
         case element
         in Element::TypedVariable(varname, _) then varname == name
@@ -495,7 +491,7 @@ into two at a given <code>element</code>.</p>
         end
       end
 
-    typedvar&amp;.then { it.type }
+    typed_var&amp;.then { it.type }
   end
 
 + def push(elements)
@@ -1436,13 +1432,12 @@ puts infer(Expression::Application.new(call42, id)) # =&gt; #&lt;data Type::Int&
 
 <h3>The final 8 typing rules...</h3>
 
-<p>... will be left as an exercise for the reader 😁</p>
+<p>... will be left as an exercise for the reader 😁. If you&#39;re interested in the full
+implementation, the code is available on <a href="https://gist.github.com/luizpvas/4f13ac409095c08bb8c0616af53104e4">this gist</a>.</p>
+
+<p>Here are missing typing rules:</p>
 
 <h4>Algorithmic typing</h4>
-
-<p>The following rules kinda of work already because type checking has a fallback to
-subtyping (via the substitution rule) that is capable of handling lambdas and
-quantifications, but we should implement them for completeness.</p>
 
 <p><img src="/images/11_25.png" alt="app_rule">
 <img src="/images/11_26.png" alt="app_rule"></p>

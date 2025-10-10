@@ -32,7 +32,7 @@ class Context
   end
 
   def lookup(name)
-    typedvar =
+    typed_var =
       @elements.find do |element|
         case element
         in Element::TypedVariable(varname, _) then varname == name
@@ -40,7 +40,7 @@ class Context
         end
       end
 
-    typedvar&.then { it.type }
+    typed_var&.then { it.type }
   end
 
   def replace(element_old, element_new)
