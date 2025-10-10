@@ -283,7 +283,7 @@ def synthesize_application(lambda_type, arg_expr, context)
     â2_name = fresh_name
     â1 = Context::Element::UnsolvedExistential.new(â1_name)
     â2 = Context::Element::UnsolvedExistential.new(â2_name)
-    â_solved = Context::Element::SolvedExistential.new(â, Type::Lambda.new(Type::Existential.new(â1), Type::Existential.new(â2)))
+    â_solved = Context::Element::SolvedExistential.new(â, Type::Lambda.new(Type::Existential.new(â1_name), Type::Existential.new(â2_name)))
     gamma = context.replace(Context::Element::UnsolvedExistential.new(â), [â2, â1, â_solved])
     delta = check(arg_expr, Type::Existential.new(â1_name), gamma)
     [Type::Existential.new(â2_name), delta]
@@ -316,6 +316,30 @@ def check(expr, type, context)
   # Γ ⊢ () <= 1  ⊣ Γ
   in [Expression::LiteralString, Type::String]
     context
+
+  # Figure 11. ->I
+  #
+  # Γ, x : A ⊢ e <= B ⊣ Δ, x : A, Θ
+  # -------------------------------
+  # Γ ⊢ λx.e <= A -> B ⊣ Δ
+  in [Expression::Lambda(x, e), Type::Lambda(a, b)]
+    arg_annotation = Context::Element::TypedVariable.new(x, a)
+    gamma = context.push(arg_annotation)
+    result = check(e, b, gamma)
+    delta, _thteta = result.split(arg_annotation)
+    delta
+
+  # Figure 11. ∀I
+  #
+  # Γ, a ⊢ e <= A ⊣ Δ, a, Θ
+  # -----------------------
+  # Γ ⊢ e <= ∀α.A ⊣ Δ
+  in [e, Type::Quantification(alpha, a)]
+    alpha_var = Context::Element::Variable.new(alpha)
+    gamma = context.push(alpha_var)
+    result = check(e, a, gamma)
+    delta, _theta = result.split(alpha_var)
+    delta
 
   # Figure 11. Sub
   #
@@ -383,6 +407,18 @@ def subtype(type_a, type_b, context)
     delta, _theta = result.split(â_marker)
     delta
 
+  # Figure 9. <: ∀R
+  #
+  # Γ, a ⊢ A <: B ⊣ Δ, a, Θ
+  # -----------------------
+  # Γ ⊢ A <: ∀a.B ⊣ Δ
+  in [a, Type::Quantification(alpha, b)]
+    alpha_var = Context::Element::Variable.new(alpha)
+    gamma = context.push(alpha_var)
+    result = subtype(a, b, gamma)
+    delta, _theta = result.split(alpha_var)
+    delta
+
   # Figure 9. <:∀R
   #
   # Γ, a ⊢ A <: B ⊣ Δ, a, Θ
@@ -431,7 +467,54 @@ def instantiate_left(type, existential_name, context)
     )
   end
 
-  raise "invalid left instantiation: #{type} #{existential_name}"
+  case type
+  # Figure 10. InstLReach
+  #
+  # Γ[â][b̂] ⊢ â <=: b̂ ⊣ Γ[â][b̂ = â]
+  in Type::Existential(beta_name)
+    alpha_name = existential_name
+    alpha = Context::Element::UnsolvedExistential(alpha_name)
+    beta = Context::Element::UnsolvedExistential(beta_name)
+    if context.index(alpha) < context.index(beta)
+      solved = Context::Element::SolvedExistential.new(beta_name, Type::Existential.new(alpha_name))
+      context.replace(beta, solved)
+    else
+      solved = Context::Element::SolvedExistential.new(alpha_name, Type::Existential.new(beta_name))
+      context.replace(alpha, solved)
+    end
+
+  # Figure 10. InstLArr
+  #
+  # Γ[â2, â1, â = â1 -> â2] ⊢ A1 <=: â1 ⊣ Θ    Θ ⊢ â2 <=: [Θ]A2 ⊣ Δ
+  # ---------------------------------------------------------------
+  # Γ[â] ⊢ â <=: A1 -> A2 ⊣ Δ
+  in Type::Lambda(a1, a2)
+    â_name = existential_name
+    â1_name = fresh_name
+    â2_name = fresh_name
+    â1 = Context::Element::UnsolvedExistential.new(â1_name)
+    â2 = Context::Element::UnsolvedExistential.new(â2_name)
+    â_solved = Context::Element::SolvedExistential.new(â_name, Type::Lambda.new(Type::Existential.new(â1_name), Type::Existential.new(â2_name)))
+    gamma = context.replace(Context::Element::UnsolvedExistential.new(â_name), [â2, â1, â_solved])
+    theta = instantiate_right(a1, â1_name, gamma)
+    delta = instantiate_left(theta.apply(a2), â2_name, theta)
+    delta
+
+  # Figure 10: InstLAIIR
+  #
+  # Γ[â], b ⊢ â <=: B ⊣ Δ, b, Δ'
+  # ----------------------------
+  # Γ[â] ⊢ â <=: ∀b.B ⊣ Δ
+  in Type::Quantification(beta, b)
+    beta_var = Context::Element::Variable.new(beta)
+    gamma = context.push(beta_var)
+    result = instantiate_left(b, existential_name, gamma)
+    delta, _other = result.split(beta_var)
+    delta
+
+  else
+    raise "invalid left instantiation: #{type} #{existential_name}"
+  end
 end
 
 def instantiate_right(type, existential_name, context)
@@ -462,6 +545,38 @@ def instantiate_right(type, existential_name, context)
       solved = Context::Element::SolvedExistential.new(alpha_name, Type::Existential.new(beta_name))
       context.replace(alpha, solved)
     end
+
+  # Figure 10. InstRArr
+  #
+  # Γ[â2, â1, â = â1 -> â2] ⊢ â1 <=: A1 ⊣ Θ    Θ ⊢ [Θ]A2 <=: â2 ⊣ Δ
+  # ---------------------------------------------------------------
+  # Γ[â] ⊢ A1 -> A2 <=: â ⊣ Δ
+  in Type::Lambda(a1, a2)
+    â_name  = existential_name
+    â1_name = fresh_name
+    â2_name = fresh_name
+    â1 = Context::Element::UnsolvedExistential.new(â1_name)
+    â2 = Context::Element::UnsolvedExistential.new(â2_name)
+    â_solved = Context::Element::SolvedExistential.new(â_name, Type::Lambda.new(Type::Existential.new(â1_name), Type::Existential.new(â2_name)))
+    gamma = context.replace(Context::Element::UnsolvedExistential.new(â_name), [â2, â1, â_solved])
+    theta = instantiate_left(a1, â1_name, gamma)
+    delta = instantiate_right(theta.apply(a2), â2_name, theta)
+    delta
+
+  # Figure 10. InstRAIIL
+  #
+  # Γ[â], ▶b̂, b̂ ⊢ [b̂/b]B <=: â ⊣ Δ, ▶b̂, Δ'
+  # ---------------------------------------------------------------
+  # Γ[â] ⊢ ∀b.B <=: â ⊣ Δ
+  in Type::Quantification(beta, b)
+    b̂_name = fresh_name
+    b̂_marker = Context::Element::Marker.new(b̂_name)
+    b̂_unsolved = Context::Element::UnsolvedExistential.new(b̂_name)
+    substituted_b = substitute(Type::Existential.new(b̂_name), b̂_name, b)
+    gamma = context.push(b̂_marker).push(b̂_unsolved)
+    result = instantiate_right(substituted_b, existential_name, gamma)
+    delta, _other = result.split(b̂_marker)
+    delta
 
   else
     raise "invalid right instantiation: #{type} #{existential_name}"
