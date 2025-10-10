@@ -7,7 +7,7 @@ language theory struggling with papers telling them their algorithm is extraordi
 
 ![image](/images/11_01.png)
 
-After fighting with [Complete and Easy Bidirectional Typechecking for
+After struggling with [Complete and Easy Bidirectional Typechecking for
 Higher-Rank Polymorphism](https://arxiv.org/abs/1306.6032) for a while, I
 I agree that it is actually simple, especially compared to
 algorithms that require constraint solving and unification. It is simple, but
