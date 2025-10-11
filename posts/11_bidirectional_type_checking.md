@@ -221,7 +221,7 @@ class Context
 end
 ```
 
-W the code above we can successfully synthesize variables.
+With the code above we can successfully synthesize variables.
 
 ### Annotations
 
